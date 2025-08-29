@@ -771,14 +771,27 @@
             imageExists(imagePath) {
                 return new Promise((resolve) => {
                     const img = new Image();
+                    
+                    // 타임아웃 설정 (5초)
+                    const timeout = setTimeout(() => {
+                        console.log('⏰ Image loading timeout:', imagePath);
+                        resolve(false);
+                    }, 5000);
+                    
                     img.onload = () => {
+                        clearTimeout(timeout);
                         console.log('🏆 Image loaded:', imagePath);
                         resolve(true);
                     };
+                    
                     img.onerror = () => {
+                        clearTimeout(timeout);
                         console.log('❌ Image not found:', imagePath);
                         resolve(false);
                     };
+                    
+                    // 크로스 오리진 설정
+                    img.crossOrigin = 'anonymous';
                     img.src = imagePath;
                 });
             }
