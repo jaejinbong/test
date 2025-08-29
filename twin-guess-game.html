@@ -633,7 +633,7 @@
 </head>
 <body>
     <!-- Loading Screen -->
-    <div class="loading-screen" id="loadingScreen">
+    <div class="loading-screen hidden" id="loadingScreen">
         <div class="loading-spinner"></div>
         <div class="loading-text">이미지를 로드하는 중...</div>
         <div class="loading-progress" id="loadingProgress">0/0</div>
@@ -723,6 +723,7 @@
                 this.score = 0;
                 this.questions = [];
                 this.preloadedImages = new Map(); // 프리로드된 이미지 캐시
+                this.imagesReady = false; // 이미지 로드 완료 상태
                 
                 // 12개 문제 미리 생성
                 for (let i = 0; i < 12; i++) {
@@ -750,35 +751,73 @@
             }
 
             async initializeGame() {
-                console.log('🎮 Initializing game...');
+                console.log('🎮 Initializing game in background...');
                 
+                // 백그라운드에서 이미지 준비 (닉네임 화면이 표시되는 동안)
+                this.prepareImagesInBackground();
+            }
+
+            async prepareImagesInBackground() {
                 try {
                     // 1단계: 사용 가능한 사진 경로 수집
                     await this.loadAvailablePhotos();
-                    console.log('📸 Photos loaded:', this.availablePhotos);
+                    console.log('📸 Photos discovered:', this.availablePhotos);
                     
                     // 2단계: 게임 문제 생성
                     this.shuffleQuestions();
                     
-                    // 3단계: 모든 이미지 프리로드
+                    // 3단계: 백그라운드에서 이미지 프리로드
                     await this.preloadAllImages();
                     
-                    // 4단계: 게임 시작 준비
-                    this.updateProgress();
-                    await this.loadQuestion();
+                    // 4단계: 이미지 준비 완료
+                    this.imagesReady = true;
+                    console.log('✅ Background image loading complete');
                     
-                    console.log('✅ Game initialization complete');
                 } catch (error) {
-                    console.error('❌ Game initialization error:', error);
-                    // 사진 로드 실패시도 기본 게임으로 진행
+                    console.error('❌ Background loading error:', error);
+                    // 로드 실패해도 게임은 계속 진행 가능
                     this.availablePhotos = {
                         '가을': [],
                         '하늘': []
                     };
                     this.shuffleQuestions();
-                    this.updateProgress();
-                    await this.loadQuestion();
+                    this.imagesReady = true; // 실패해도 게임 시작 허용
                 }
+            }
+
+            async startGameplay() {
+                console.log('🎮 Starting gameplay...');
+                
+                // 이미지가 아직 준비되지 않았으면 로딩 화면 표시
+                if (!this.imagesReady) {
+                    document.getElementById('loadingScreen').classList.remove('hidden');
+                    
+                    // 이미지 준비 완료까지 대기
+                    await this.waitForImages();
+                    
+                    document.getElementById('loadingScreen').classList.add('hidden');
+                }
+                
+                this.updateProgress();
+                await this.loadQuestion();
+            }
+
+            async waitForImages() {
+                return new Promise((resolve) => {
+                    const checkInterval = setInterval(() => {
+                        if (this.imagesReady) {
+                            clearInterval(checkInterval);
+                            resolve();
+                        }
+                    }, 100);
+                    
+                    // 최대 30초 대기
+                    setTimeout(() => {
+                        clearInterval(checkInterval);
+                        this.imagesReady = true;
+                        resolve();
+                    }, 30000);
+                });
             }
 
             async loadAvailablePhotos() {
@@ -1016,12 +1055,7 @@
                     progressElement.textContent = `${loaded}/${total}`;
                 }
                 
-                // 모든 이미지가 로드되면 로딩 화면 숨기기
-                if (loaded === total && total > 0) {
-                    setTimeout(() => {
-                        document.getElementById('loadingScreen').classList.add('hidden');
-                    }, 500);
-                }
+                // 로딩 화면은 수동으로만 제어 (자동 숨김 제거)
             }
 
             async loadQuestion() {
@@ -1520,7 +1554,7 @@
         let playerNickname = '';
         let gameInstance = null;
 
-        function startGame() {
+        async function startGame() {
             const nickname = document.getElementById('nicknameInput').value.trim();
             
             if (nickname === '') {
@@ -1541,8 +1575,9 @@
             document.body.classList.remove('left-active', 'right-active');
             document.body.classList.add('neutral');
             
-            // Initialize new game instance
+            // Initialize new game instance and start gameplay
             gameInstance = new TwinGuessingGame();
+            await gameInstance.startGameplay();
         }
 
         function restartGame() {
