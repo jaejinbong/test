@@ -1488,12 +1488,11 @@
                 // gameScore 요소가 없으므로 주석 처리
                 // document.getElementById('gameScore').textContent = `${this.score}/3`;
                 
-                // 점수 순위에 따른 메달 이모지
-                const getMedalEmoji = (score) => {
-                    const ratio = score / 12;
-                    if (ratio >= 0.9) return '🥇'; // 90% 이상
-                    if (ratio >= 0.7) return '🥈'; // 70% 이상
-                    if (ratio >= 0.4) return '🥉'; // 40% 이상
+                // 순위에 따른 메달 이모지 (점수가 아닌 순위 기준)
+                const getMedalEmoji = (position) => {
+                    if (position === 0) return '🥇'; // 1등
+                    if (position === 1) return '🥈'; // 2등
+                    if (position === 2) return '🥉'; // 3등
                     return '';
                 };
                 
@@ -1526,10 +1525,10 @@
                 // 점수 내림차순으로 정렬된 키들
                 const sortedScores = Object.keys(groupedScores).sort((a, b) => b - a);
                 
-                // 그룹별로 표시
-                rankingContainer.innerHTML = sortedScores.map(score => {
+                // 그룹별로 표시 (순위별 메달 적용)
+                rankingContainer.innerHTML = sortedScores.map((score, groupIndex) => {
                     const entries = groupedScores[score];
-                    const medalEmoji = getMedalEmoji(parseInt(score));
+                    const medalEmoji = getMedalEmoji(groupIndex); // 그룹 순서(순위)로 메달 결정
                     
                     // 닉네임들을 콤마로 구분하여 배치 (날짜 정보 제거)
                     const nicknames = entries.map(entry => {
