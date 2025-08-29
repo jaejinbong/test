@@ -40,6 +40,17 @@
             margin-bottom: 20px;
             color: white;
         }
+        
+        /* 게임 화면에서 헤더와 인디케이터를 중앙 카드로부터 24px 위에 배치 */
+        .game-screen .header {
+            position: absolute;
+            top: calc(50% - 160px - 24px); /* 카드 중심에서 160px+24px 위 */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            margin-bottom: 0;
+            z-index: 10;
+        }
 
         .header h1 {
             font-size: 24px;
@@ -485,6 +496,10 @@
         .nickname-screen .header {
             margin-bottom: 30px;
         }
+        
+        .nickname-screen .header h1 {
+            font-size: 32px;
+        }
 
         .video-container {
             margin-bottom: 24px;
@@ -599,6 +614,10 @@
             white-space: normal;
             padding: 0 20px;
             text-align: center;
+        }
+        
+        .results-screen .header h1 {
+            font-size: 32px;
         }
 
         .results-screen .header .subtitle {
@@ -1141,6 +1160,11 @@
                 this.photoCard.classList.add('dragging');
                 this.photoCard.style.transition = 'none';
                 
+                // 햄틱 피드백 추가 (드래그 시작)
+                if (navigator.vibrate) {
+                    navigator.vibrate(10); // 10ms 짧은 진동
+                }
+                
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
                 
@@ -1193,9 +1217,17 @@
                 
                 if (this.currentX < -threshold) {
                     selectedAnswer = '가을';
+                    // 햄틱 피드백 추가 (선택 성공)
+                    if (navigator.vibrate) {
+                        navigator.vibrate(30); // 30ms 진동
+                    }
                     this.animateCardExit('left');
                 } else if (this.currentX > threshold) {
                     selectedAnswer = '하늘';
+                    // 햄틱 피드백 추가 (선택 성공)
+                    if (navigator.vibrate) {
+                        navigator.vibrate(30); // 30ms 진동
+                    }
                     this.animateCardExit('right');
                 } else {
                     // 중앙으로 부드럽게 복귀
