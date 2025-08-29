@@ -956,8 +956,8 @@
                 // 로딩 진행률 업데이트
                 this.updateLoadingProgress(loadedImages, totalImages);
                 
-                // 병렬로 이미지 프리로드 (최대 6개씩)
-                const batchSize = 6;
+                // 병렬로 이미지 프리로드 (최대 3개씩으로 줄여서 안정성 향상)
+                const batchSize = 3;
                 for (let i = 0; i < imagesToPreload.length; i += batchSize) {
                     const batch = imagesToPreload.slice(i, i + batchSize);
                     const promises = batch.map(async (imagePath) => {
@@ -993,7 +993,7 @@
                     
                     const timeout = setTimeout(() => {
                         reject(new Error('Preload timeout'));
-                    }, 10000); // 10초 타임아웃
+                    }, 5000); // 5초 타임아웃으로 단축
                     
                     img.onload = () => {
                         clearTimeout(timeout);
