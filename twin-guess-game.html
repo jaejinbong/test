@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>가을이하늘이 맞추기 - 가을이 vs 하늘이</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #000000;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            margin: 0 auto;
+            padding: 15px;
+            position: relative;
+            overflow: visible;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header .subtitle {
+            font-size: 16px;
+            font-weight: 300;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .progress {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .progress-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .progress-dot.active {
+            background: #4CAF50;
+            transform: scale(1.2);
+        }
+
+        .progress-dot.completed {
+            background: white;
+        }
+
+        .game-area {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 320px;
+            overflow: visible;
+            width: 100vw;
+            margin-left: -15px;
+            margin-right: -15px;
+        }
+
+        .drop-zones {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            z-index: 1;
+        }
+
+        .drop-zone {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.3s ease;
+            border-radius: 20px;
+            margin: 10px;
+        }
+
+        body.left-active {
+            background: #8B4513 !important;
+            transition: background 0.3s ease;
+        }
+
+        body.right-active {
+            background: #87CEEB !important;
+            transition: background 0.3s ease;
+        }
+
+        body.neutral {
+            background: #000000 !important;
+            transition: background 0.3s ease;
+        }
+
+        .side-labels {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 240px;
+            z-index: 5;
+            pointer-events: none;
+            width: auto;
+        }
+
+        .side-label {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 3px 6px rgba(0,0,0,0.8);
+            opacity: 1;
+            background: rgba(0,0,0,0.3);
+            padding: 8px 16px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+            white-space: nowrap;
+        }
+
+        .photo-card {
+            width: 200px;
+            height: 250px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            position: absolute;
+            z-index: 10;
+            cursor: grab;
+            overflow: hidden;
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            display: flex;
+            flex-direction: column;
+            will-change: transform;
+            transform: translate(-50%, -50%) scale(1.0);
+            left: 50%;
+            top: 50%;
+        }
+
+        .photo-card:active {
+            cursor: grabbing;
+        }
+
+        .photo-card.dragging {
+            z-index: 20;
+            transition: none;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+
+        .photo-container {
+            width: 100%;
+            height: 100%;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #666;
+            position: relative;
+            overflow: hidden;
+            border-radius: 20px;
+        }
+
+        .photo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            border-radius: 20px;
+        }
+
+        .photo-placeholder {
+            text-align: center;
+            line-height: 1.4;
+        }
+
+
+        .results-screen {
+            display: none;
+            text-align: center;
+            color: white;
+            padding: 15px;
+            position: relative;
+            z-index: 20;
+            background: #000000;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .results-content {
+            min-height: calc(100vh - 30px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding-bottom: 80px;
+            transition: justify-content 0.3s ease;
+        }
+
+        @media (max-height: 600px) {
+            .results-content {
+                justify-content: flex-start;
+                padding-top: 20px;
+            }
+        }
+
+        .results-screen.active {
+            display: block;
+        }
+
+        .results-screen.active ~ .header {
+            display: none;
+        }
+
+        .score-display {
+            padding: 0;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        .score-display h2 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .score-display p {
+            font-size: 14px;
+            opacity: 0.9;
+            margin: 0;
+        }
+
+        .dashboard {
+            padding: 15px;
+            margin-bottom: 15px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .score-ranking {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .ranking-group {
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .ranking-group-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+        }
+
+        .ranking-item {
+            padding: 4px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            border-radius: 8px;
+        }
+
+        .nicknames-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .nickname-item {
+            white-space: nowrap;
+        }
+
+        .ranking-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .ranking-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .ranking-emoji {
+            font-size: 24px;
+        }
+
+        .ranking-score {
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .ranking-nickname {
+            font-size: 16px;
+            font-weight: 500;
+            color: #FFD700;
+        }
+
+        .ranking-time {
+            font-size: 14px;
+            opacity: 0.7;
+            color: white;
+        }
+
+        .emoji-particle {
+            position: fixed;
+            z-index: 100;
+            pointer-events: none;
+            user-select: none;
+            animation: fall 2s ease-out forwards;
+        }
+
+        @keyframes fall {
+            0% {
+                opacity: 1;
+                transform: translateY(0) rotate(0deg);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(300px) rotate(360deg);
+            }
+        }
+
+        .emoji-particle.dissolve {
+            animation: dissolve 0.3s ease-out forwards;
+        }
+
+        @keyframes dissolve {
+            0% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+
+        .restart-btn {
+            background: #ffffff;
+            color: #000000;
+            border: none;
+            padding: 18px 32px;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+            font-family: 'Roboto', sans-serif;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            white-space: nowrap;
+            width: auto;
+            display: inline-block;
+        }
+
+        .restart-btn:hover {
+            background: rgba(255, 255, 255, 0.9);
+            transform: translateX(-50%) translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+        }
+
+        .restart-btn:active {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .date-display {
+            text-align: center;
+            font-size: 14px;
+            opacity: 0.7;
+            margin-bottom: 10px;
+        }
+
+        /* Nickname Screen Styles */
+        .nickname-screen {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nickname-screen .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .nickname-screen .header {
+            margin-bottom: 30px;
+        }
+
+        .video-container {
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .intro-video {
+            width: 200px;
+            height: 200px;
+            border-radius: 40px;
+            object-fit: cover;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .nickname-input-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .nickname-input {
+            width: 100%;
+            max-width: 300px;
+            padding: 20px 0;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 18px;
+            font-weight: 400;
+            text-align: center;
+            outline: none;
+        }
+
+        .nickname-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 20px;
+        }
+
+        .start-button-area {
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .start-btn {
+            width: auto;
+            background: #ffffff;
+            color: #000000;
+            border: none;
+            padding: 18px 32px;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .start-btn:hover {
+            background: rgba(255, 255, 255, 0.9);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+        }
+
+        .start-btn:active {
+            transform: translateY(0);
+        }
+
+        .start-btn:disabled {
+            background: rgba(255, 255, 255, 0.3);
+            color: rgba(0, 0, 0, 0.5);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+
+        .game-screen {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: visible;
+        }
+
+        .game-screen .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: visible;
+        }
+
+        .game-screen .header {
+            margin-bottom: 15px;
+            position: static;
+            transform: none;
+            z-index: 15;
+            text-align: center;
+            width: 100%;
+            white-space: nowrap;
+        }
+
+        .results-screen .header {
+            position: static;
+            transform: none;
+            width: 100%;
+            margin: 0 auto 12px auto;
+            white-space: normal;
+            padding: 0 20px;
+            text-align: center;
+        }
+
+        .results-screen .header .subtitle {
+            font-size: 40px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .photo-card {
+                width: 180px;
+                height: 225px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            .side-labels {
+                gap: 160px;
+            }
+            
+            .game-area {
+                min-height: 280px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Nickname Input Screen -->
+    <div class="nickname-screen" id="nicknameScreen">
+        <div class="container">
+            <div class="video-container">
+                <video class="intro-video" autoplay muted loop playsinline>
+                    <source src="jeju_twins.mov" type="video/mp4">
+                    <source src="jeju_twins.mov" type="video/quicktime">
+                    비디오를 재생할 수 없습니다.
+                </video>
+            </div>
+            
+            <div class="header">
+                <h1>가을 하늘 맞추기</h1>
+            </div>
+            
+            <div class="nickname-input-area">
+                <input type="text" id="nicknameInput" class="nickname-input" placeholder="닉네임을 입력해주세요" maxlength="10">
+            </div>
+            
+            <div class="start-button-area">
+                <button class="start-btn" id="startBtn" onclick="startGame()">시작하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div class="game-screen" id="gameScreen" style="display: none;">
+        <div class="container">
+            <div class="header">
+                <p class="subtitle" id="gameProgress">1/12</p>
+                <h1>이 아기는 누구?</h1>
+            </div>
+
+            <div class="game-area" id="gameArea">
+            <div class="drop-zones">
+                <div class="drop-zone" id="leftZone" data-answer="가을"></div>
+                <div class="drop-zone" id="rightZone" data-answer="하늘"></div>
+            </div>
+            
+            <div class="side-labels">
+                <div class="side-label">가을</div>
+                <div class="side-label">하늘</div>
+            </div>
+
+            <div class="photo-card" id="photoCard">
+                <div class="photo-container">
+                    <div class="photo-placeholder">
+                        📸<br>
+                        아기 사진이<br>
+                        여기에 표시됩니다
+                    </div>
+                </div>
+            </div>
+            </div>
+
+            <div class="results-screen" id="resultsScreen">
+                <div class="results-content">
+                    <div class="header">
+                        <h1 id="dynamicTitle">가을하늘 랭킹</h1>
+                    </div>
+                    
+                    <div class="score-display">
+                        <p id="scoreMessage">결과가 저장되었습니다!</p>
+                    </div>
+
+                    <div class="dashboard">
+                        <div class="score-ranking" id="scoreRanking">
+                            <!-- 순위별 결과가 여기에 표시됩니다 -->
+                        </div>
+                    </div>
+                </div>
+
+                <button class="restart-btn" onclick="restartGame()">다시 도전하기</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class TwinGuessingGame {
+            constructor() {
+                this.currentQuestion = 0;
+                this.score = 0;
+                this.questions = [];
+                
+                // 12개 문제 미리 생성
+                for (let i = 0; i < 12; i++) {
+                    const randomBaby = ['가을', '하늘'][Math.floor(Math.random() * 2)];
+                    this.questions.push({
+                        baby: randomBaby,
+                        description: `${i + 1}번째 문제`
+                    });
+                }
+                
+                this.photoCard = document.getElementById('photoCard');
+                this.gameArea = document.getElementById('gameArea');
+                this.leftZone = document.getElementById('leftZone');
+                this.rightZone = document.getElementById('rightZone');
+                
+                this.isDragging = false;
+                this.startX = 0;
+                this.startY = 0;
+                this.currentX = 0;
+                this.currentY = 0;
+                this.initialTransform = '';
+                
+                this.initializeGame();
+                this.setupDragAndDrop();
+            }
+
+            async initializeGame() {
+                console.log('🎮 Initializing game...');
+                
+                try {
+                    await this.loadAvailablePhotos();
+                    console.log('📸 Photos loaded:', this.availablePhotos);
+                    
+                    this.shuffleQuestions();
+                    this.updateProgress();
+                    await this.loadQuestion();
+                    
+                    console.log('✅ Game initialization complete');
+                } catch (error) {
+                    console.error('❌ Game initialization error:', error);
+                    // 사진 로드 실패시도 기본 게임으로 진행
+                    this.availablePhotos = {
+                        '가을': [],
+                        '하늘': []
+                    };
+                    this.shuffleQuestions();
+                    this.updateProgress();
+                    await this.loadQuestion();
+                }
+            }
+
+            async loadAvailablePhotos() {
+                console.log('📸 Loading available photos...');
+                
+                // availablePhotos 초기화 확인
+                if (!this.availablePhotos) {
+                    console.log('🔧 Initializing availablePhotos object');
+                    this.availablePhotos = {
+                        '가을': [],
+                        '하늘': []
+                    };
+                }
+                
+                // 가을이 사진 로드 (1-50번 사진 검사, 다양한 확장자 지원)
+                const extensions = ['jpg', 'JPG', 'jpeg', 'JPEG', 'png', 'PNG'];
+                for (let i = 1; i <= 50; i++) {
+                    const baseName = `images/gaeul/gaeul_${i.toString().padStart(2, '0')}`;
+                    for (const ext of extensions) {
+                        const imagePath = `${baseName}.${ext}`;
+                        if (await this.imageExists(imagePath)) {
+                            this.availablePhotos['가을'].push(imagePath);
+                            console.log('✅ 가을이 사진 발견:', imagePath);
+                            break; // 첫 번째로 찾은 확장자로 중단
+                        }
+                    }
+                }
+                
+                // 하늘이 사진 로드 (1-50번 사진 검사, 다양한 확장자 지원)
+                for (let i = 1; i <= 50; i++) {
+                    const baseName = `images/haneul/haneul_${i.toString().padStart(2, '0')}`;
+                    for (const ext of extensions) {
+                        const imagePath = `${baseName}.${ext}`;
+                        if (await this.imageExists(imagePath)) {
+                            this.availablePhotos['하늘'].push(imagePath);
+                            console.log('✅ 하늘이 사진 발견:', imagePath);
+                            break; // 첫 번째로 찾은 확장자로 중단
+                        }
+                    }
+                }
+                
+                console.log('🎆 로드된 사진 총개수:', {
+                    '가을': this.availablePhotos['가을'].length,
+                    '하늘': this.availablePhotos['하늘'].length
+                });
+                
+                // 사진이 전혀 없는 경우 경고
+                const totalPhotos = this.availablePhotos['가을'].length + this.availablePhotos['하늘'].length;
+                if (totalPhotos === 0) {
+                    console.warn('⚠️ 사진이 전혀 발견되지 않았습니다. 플레이스홀더 모드로 진행합니다.');
+                }
+            }
+            
+            imageExists(imagePath) {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        console.log('🏆 Image loaded:', imagePath);
+                        resolve(true);
+                    };
+                    img.onerror = () => {
+                        console.log('❌ Image not found:', imagePath);
+                        resolve(false);
+                    };
+                    img.src = imagePath;
+                });
+            }
+
+            shuffleQuestions() {
+                console.log('🎲 Shuffling questions...');
+                
+                // availablePhotos 초기화 확인 (이중 안전장치)
+                if (!this.availablePhotos) {
+                    console.warn('⚠️ availablePhotos not initialized in shuffleQuestions');
+                    this.availablePhotos = {
+                        '가을': [],
+                        '하늘': []
+                    };
+                }
+                
+                const babies = ['가을', '하늘'];
+                this.questions = [];
+                
+                // 사용된 이미지 추적을 위한 세트
+                const usedImages = new Set();
+                
+                // 모든 사용 가능한 이미지를 하나의 풀로 합치기
+                const allAvailableImages = [];
+                babies.forEach(baby => {
+                    const images = this.availablePhotos[baby] || [];
+                    images.forEach(imagePath => {
+                        allAvailableImages.push({ baby, imagePath });
+                    });
+                });
+                
+                console.log('📊 Total available images:', allAvailableImages.length);
+                
+                // 12개 문제 생성 (중복 없이)
+                for (let i = 0; i < 12; i++) {
+                    if (allAvailableImages.length === 0) {
+                        // 사용 가능한 이미지가 없으면 플레이스홀더 사용
+                        const randomBaby = babies[Math.floor(Math.random() * babies.length)];
+                        this.questions.push({
+                            baby: randomBaby,
+                            imagePath: null,
+                            description: `${i + 1}번째 문제`
+                        });
+                        console.log(`📋 Question ${i + 1}: ${randomBaby} - placeholder mode (no images)`);
+                        continue;
+                    }
+                    
+                    // 아직 사용되지 않은 이미지 찾기
+                    const unusedImages = allAvailableImages.filter(img => !usedImages.has(img.imagePath));
+                    
+                    if (unusedImages.length === 0) {
+                        // 모든 이미지를 사용했으면 사용된 이미지 풀 초기화 (순환 사용)
+                        console.log('🔄 All images used, resetting pool for reuse');
+                        usedImages.clear();
+                        const randomImageData = allAvailableImages[Math.floor(Math.random() * allAvailableImages.length)];
+                        usedImages.add(randomImageData.imagePath);
+                        
+                        this.questions.push({
+                            baby: randomImageData.baby,
+                            imagePath: randomImageData.imagePath,
+                            description: `${i + 1}번째 문제`
+                        });
+                        console.log(`✅ Question ${i + 1}: ${randomImageData.baby} - ${randomImageData.imagePath} (reused)`);
+                    } else {
+                        // 사용되지 않은 이미지 중에서 랜덤 선택
+                        const randomImageData = unusedImages[Math.floor(Math.random() * unusedImages.length)];
+                        usedImages.add(randomImageData.imagePath);
+                        
+                        this.questions.push({
+                            baby: randomImageData.baby,
+                            imagePath: randomImageData.imagePath,
+                            description: `${i + 1}번째 문제`
+                        });
+                        console.log(`✅ Question ${i + 1}: ${randomImageData.baby} - ${randomImageData.imagePath} (unique)`);
+                    }
+                }
+                
+                console.log('🎯 Total questions generated:', this.questions.length);
+                console.log('🚫 Used images count:', usedImages.size);
+            }
+
+            async loadQuestion() {
+                if (this.currentQuestion < this.questions.length) {
+                    const question = this.questions[this.currentQuestion];
+                    
+                    console.log(`🎯 Loading question ${this.currentQuestion + 1}:`, question);
+                    
+                    const photoContainer = this.photoCard.querySelector('.photo-container');
+                    const placeholder = this.photoCard.querySelector('.photo-placeholder');
+                    
+                    // 실제 사진이 있는 경우 로드
+                    if (question.imagePath) {
+                        console.log('🖼️ Loading image:', question.imagePath);
+                        
+                        // 기존 이미지 제거
+                        const existingImg = photoContainer.querySelector('img');
+                        if (existingImg) {
+                            existingImg.remove();
+                        }
+                        
+                        // 새 이미지 생성 및 로드
+                        const img = new Image();
+                        
+                        img.onload = () => {
+                            console.log('✅ Image loaded successfully:', question.imagePath);
+                            
+                            // placeholder 숨기고 이미지 표시
+                            placeholder.style.display = 'none';
+                            photoContainer.appendChild(img);
+                            
+                            console.log('🎉 Image display complete');
+                        };
+                        
+                        img.onerror = () => {
+                            console.error('❌ Failed to load image:', question.imagePath);
+                            // 로드 실패시 placeholder 표시
+                            placeholder.style.display = 'flex';
+                            placeholder.innerHTML = `📸<br>${question.description}<br>(이미지 로드 실패)`;
+                        };
+                        
+                        // 이미지 로드 시작
+                        img.src = question.imagePath;
+                        
+                        // 5초 타임아웃 설정
+                        setTimeout(() => {
+                            if (!img.complete) {
+                                console.warn('⏰ Image loading timeout:', question.imagePath);
+                                img.src = ''; // 로딩 중단
+                                placeholder.style.display = 'flex';
+                                placeholder.innerHTML = `📸<br>${question.description}<br>(로딩 타임아웃)`;
+                            }
+                        }, 5000);
+                        
+                    } else {
+                        // 사진이 없는 경우 placeholder 표시
+                        console.log('📋 No image available, showing placeholder');
+                        const existingImg = photoContainer.querySelector('img');
+                        if (existingImg) {
+                            existingImg.remove();
+                        }
+                        placeholder.style.display = 'flex';
+                        placeholder.innerHTML = `📸<br>${question.description}<br>(${question.baby} 아기 사진)`;
+                    }
+                }
+            }
+
+            updateProgress() {
+                const progressElement = document.getElementById('gameProgress');
+                if (progressElement) {
+                    progressElement.textContent = `${this.currentQuestion + 1}/12`;
+                }
+            }
+
+            setupDragAndDrop() {
+                // Touch events
+                this.photoCard.addEventListener('touchstart', this.handleStart.bind(this));
+                this.photoCard.addEventListener('touchmove', this.handleMove.bind(this));
+                this.photoCard.addEventListener('touchend', this.handleEnd.bind(this));
+
+                // Mouse events for desktop testing
+                this.photoCard.addEventListener('mousedown', this.handleStart.bind(this));
+                document.addEventListener('mousemove', this.handleMove.bind(this));
+                document.addEventListener('mouseup', this.handleEnd.bind(this));
+            }
+
+            handleStart(e) {
+                e.preventDefault();
+                this.isDragging = true;
+                this.photoCard.classList.add('dragging');
+                this.photoCard.style.transition = 'none';
+                
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                this.startX = clientX;
+                this.startY = clientY;
+                this.currentX = 0;
+                this.currentY = 0;
+            }
+
+            handleMove(e) {
+                if (!this.isDragging) return;
+                e.preventDefault();
+                
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                this.currentX = clientX - this.startX;
+                this.currentY = clientY - this.startY;
+                
+                // 더 부드러운 회전 효과 (최대 15도)
+                const rotation = Math.max(-15, Math.min(15, this.currentX * 0.1));
+                
+                // 카드가 더 자연스럽게 따라오도록 Y축 움직임 제한
+                const limitedY = this.currentY * 0.3;
+                
+                requestAnimationFrame(() => {
+                    this.photoCard.style.transform = `translate(-50%, -50%) translate3d(${this.currentX}px, ${limitedY}px, 0) rotate(${rotation}deg) scale(1.0)`;
+                });
+                
+                // 배경색 변경
+                document.body.classList.remove('left-active', 'right-active', 'neutral');
+                
+                if (this.currentX < -50) {
+                    document.body.classList.add('left-active');
+                } else if (this.currentX > 50) {
+                    document.body.classList.add('right-active');
+                } else {
+                    document.body.classList.add('neutral');
+                }
+            }
+
+            handleEnd(e) {
+                if (!this.isDragging) return;
+                
+                this.isDragging = false;
+                this.photoCard.classList.remove('dragging');
+                
+                const threshold = 80; // 더 명확한 선택을 위한 임계값
+                let selectedAnswer = null;
+                
+                if (this.currentX < -threshold) {
+                    selectedAnswer = '가을';
+                    this.animateCardExit('left');
+                } else if (this.currentX > threshold) {
+                    selectedAnswer = '하늘';
+                    this.animateCardExit('right');
+                } else {
+                    // 중앙으로 부드럽게 복귀
+                    this.photoCard.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                    this.photoCard.style.transform = 'translate(-50%, -50%) translate3d(0, 0, 0) rotate(0deg) scale(1.0)';
+                    
+                    // 배경색 복구
+                    document.body.classList.remove('left-active', 'right-active');
+                    document.body.classList.add('neutral');
+                    
+                    setTimeout(() => {
+                        this.photoCard.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                    }, 400);
+                    return;
+                }
+                
+                this.showEmojiExplosion(selectedAnswer);
+                
+                setTimeout(() => {
+                    this.checkAnswer(selectedAnswer);
+                }, 300);
+            }
+
+            showEmojiExplosion(selectedAnswer) {
+                const emojiMap = {
+                    '가을': '🍁',
+                    '하늘': '☁️'
+                };
+                
+                const emoji = emojiMap[selectedAnswer] || '✨';
+                const particleCount = Math.floor(Math.random() * 6) + 20; // 20~25개
+                
+                // 시작 위치 결정 (왼쪽 또는 오른쪽 끝)
+                const startSide = selectedAnswer === '가을' ? 'left' : 'right';
+                
+                // 파티클들을 저장할 배열
+                this.activeParticles = this.activeParticles || [];
+                
+                for (let i = 0; i < particleCount; i++) {
+                    setTimeout(() => {
+                        this.createEmojiParticle(emoji, startSide);
+                    }, i * 25); // 더 빠르게 순차적으로 나타남 (팡! 효과)
+                }
+            }
+
+            createEmojiParticle(emoji, startSide) {
+                const particle = document.createElement('div');
+                particle.className = 'emoji-particle';
+                particle.textContent = emoji;
+                
+                // 랜덤 크기 설정 (24px ~ 72px) - 150% 증가
+                const size = Math.floor(Math.random() * 48) + 24;
+                particle.style.fontSize = `${size}px`;
+                
+                // 시작 위치 설정
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+                
+                let startX, endX;
+                if (startSide === 'left') {
+                    startX = -50; // 화면 왼쪽 밖
+                    endX = Math.random() * (screenWidth * 0.7) + (screenWidth * 0.15); // 화면 중앙 쪽으로
+                } else {
+                    startX = screenWidth + 50; // 화면 오른쪽 밖
+                    endX = Math.random() * (screenWidth * 0.7) + (screenWidth * 0.15); // 화면 중앙 쪽으로
+                }
+                
+                const startY = Math.random() * (screenHeight * 0.3) + (screenHeight * 0.1); // 상단에서 시작
+                const fallDistance = Math.random() * 300 + 400; // 400~700px 떨어짐 (더 많이 떨어짐)
+                
+                particle.style.left = `${startX}px`;
+                particle.style.top = `${startY}px`;
+                
+                // 물리 효과를 위한 커스텀 애니메이션 - 90% 속도로 조정
+                const duration = Math.random() * 667 + 889; // 0.89~1.56초 (기존의 90% 속도)
+                const horizontalDistance = endX - startX;
+                
+                // 초기 속도와 감속을 위한 변수들
+                const initialVelocity = 2.5; // 초기 속도 배수
+                const horizontalInitialVelocity = 1.8; // 수평 초기 속도 배수
+                
+                particle.style.animation = 'none';
+                particle.style.transform = 'translateY(0) rotate(0deg)';
+                particle.style.opacity = '1';
+                
+                document.body.appendChild(particle);
+                this.activeParticles.push(particle);
+                
+                // 물리 엔진 시뮬레이션 - '팡' 효과로 초기 속도가 빠름
+                const startTime = Date.now();
+                const animate = () => {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    
+                    // 강한 감속 커브 - 초기에 빠르다가 급격히 감속
+                    const easeOutCubic = 1 - Math.pow(1 - progress, 3); // 더 강한 감속
+                    const easeOutStrong = 1 - Math.pow(1 - progress, 4); // 매우 강한 감속
+                    
+                    // 수평 이동 (초기에 빠르게 이동 후 급감속)
+                    const currentX = startX + horizontalDistance * easeOutStrong;
+                    
+                    // 수직 이동 (초기에 매우 빠르게 떨어지다가 감속)
+                    const verticalProgress = Math.min(progress * initialVelocity, 1);
+                    const currentY = startY + fallDistance * (1 - Math.pow(1 - verticalProgress, 2));
+                    
+                    // 회전 (초기에 빠르게 회전하다가 감속)
+                    const rotation = 360 * easeOutCubic * 2; // 더 많이 회전
+                    
+                    particle.style.left = `${currentX}px`;
+                    particle.style.top = `${currentY}px`;
+                    particle.style.transform = `rotate(${rotation}deg)`;
+                    
+                    // 투명도도 중간부터 서서히 사라지게
+                    const fadeStart = 0.6; // 60% 지점부터 페이드 시작
+                    if (progress > fadeStart) {
+                        const fadeProgress = (progress - fadeStart) / (1 - fadeStart);
+                        particle.style.opacity = Math.max(0, 1 - fadeProgress);
+                    }
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        this.removeParticle(particle);
+                    }
+                };
+                
+                requestAnimationFrame(animate);
+            }
+
+            removeParticle(particle) {
+                if (particle && particle.parentNode) {
+                    particle.parentNode.removeChild(particle);
+                }
+                if (this.activeParticles) {
+                    const index = this.activeParticles.indexOf(particle);
+                    if (index > -1) {
+                        this.activeParticles.splice(index, 1);
+                    }
+                }
+            }
+
+            clearActiveParticles() {
+                if (this.activeParticles) {
+                    this.activeParticles.forEach(particle => {
+                        if (particle && particle.parentNode) {
+                            particle.classList.add('dissolve');
+                            setTimeout(() => {
+                                this.removeParticle(particle);
+                            }, 300);
+                        }
+                    });
+                }
+            }
+
+            animateCardExit(direction) {
+                const exitX = direction === 'left' ? -400 : 400;
+                const exitY = Math.random() * 40 - 20; // 약간의 랜덤 Y축 움직임
+                const rotation = direction === 'left' ? -20 : 20;
+                
+                this.photoCard.style.transition = 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                this.photoCard.style.transform = `translate(-50%, -50%) translate3d(${exitX}px, ${exitY}px, 0) rotate(${rotation}deg) scale(0.9)`;
+                this.photoCard.style.opacity = '0.8';
+            }
+
+            checkAnswer(selectedAnswer) {
+                const correctAnswer = this.questions[this.currentQuestion].baby;
+                
+                if (selectedAnswer === correctAnswer) {
+                    this.score++;
+                }
+                
+                this.currentQuestion++;
+                
+                if (this.currentQuestion < this.questions.length) {
+                    // Next question
+                    setTimeout(async () => {
+                        // Clear active particles with dissolve effect
+                        this.clearActiveParticles();
+                        
+                        // Reset background to black
+                        document.body.classList.remove('left-active', 'right-active');
+                        document.body.classList.add('neutral');
+                        
+                        // Reset card to center
+                        this.photoCard.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                        this.photoCard.style.transform = 'translate(-50%, -50%) translate3d(0, 0, 0) rotate(0deg) scale(1.0)';
+                        this.photoCard.style.filter = 'none';
+                        this.photoCard.style.opacity = '1';
+                        
+                        this.updateProgress();
+                        await this.loadQuestion();
+                    }, 200);
+                } else {
+                    // Game finished
+                    setTimeout(() => {
+                        this.showResults();
+                    }, 800);
+                }
+            }
+
+            showResults() {
+                // Reset background to black
+                document.body.classList.remove('left-active', 'right-active');
+                document.body.classList.add('neutral');
+                
+                this.gameArea.style.display = 'none';
+                document.querySelector('.game-screen .header').style.display = 'none';
+                document.getElementById('resultsScreen').classList.add('active');
+                
+                // 점수에 따른 동적 타이틀 설정
+                this.updateDynamicTitle();
+                
+                document.getElementById('scoreMessage').textContent = `${this.score}/12개 맞추셨어요!`;
+                
+                this.saveScore();
+                this.updateDashboard();
+                
+                // 스크롤 필요 여부에 따른 정렬 조정
+                setTimeout(() => {
+                    this.adjustResultsAlignment();
+                }, 100);
+            }
+
+            adjustResultsAlignment() {
+                const resultsContent = document.querySelector('.results-content');
+                const resultsScreen = document.getElementById('resultsScreen');
+                
+                if (resultsContent && resultsScreen) {
+                    const contentHeight = resultsContent.scrollHeight;
+                    const screenHeight = resultsScreen.clientHeight;
+                    
+                    if (contentHeight > screenHeight) {
+                        // 스크롤이 필요한 경우 상단 정렬
+                        resultsContent.style.justifyContent = 'flex-start';
+                        resultsContent.style.paddingTop = '20px';
+                    } else {
+                        // 스크롤이 불필요한 경우 중앙 정렬
+                        resultsContent.style.justifyContent = 'center';
+                        resultsContent.style.paddingTop = '0';
+                    }
+                }
+            }
+
+            updateDynamicTitle() {
+                const titleElement = document.getElementById('dynamicTitle');
+                
+                const scoreRatio = this.score / 12;
+                
+                if (scoreRatio >= 0.9) {
+                    // 90% 이상 (11-12개)
+                    titleElement.textContent = '어...엄마..? 😱';
+                } else if (scoreRatio >= 0.7) {
+                    // 70% 이상 (8-10개)
+                    titleElement.textContent = '도치 이모, 삼촌 인정! 👍';
+                } else if (scoreRatio >= 0.4) {
+                    // 40% 이상 (5-7개)
+                    titleElement.textContent = '한 번 방문하셔야겠어요...! 🏠';
+                } else {
+                    // 40% 미만 (0-4개)
+                    titleElement.textContent = '실망이에요..! 😞';
+                }
+            }
+
+            saveScore() {
+                let allScores = JSON.parse(localStorage.getItem('all_scores')) || [];
+                
+                const timestamp = new Date().toLocaleTimeString('ko-KR', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                const date = new Date().toLocaleDateString('ko-KR', {
+                    month: 'short',
+                    day: 'numeric'
+                });
+                
+                allScores.push({
+                    score: this.score,
+                    time: timestamp,
+                    date: date,
+                    nickname: playerNickname
+                });
+                
+                localStorage.setItem('all_scores', JSON.stringify(allScores));
+            }
+
+            updateDashboard() {
+                const allScores = JSON.parse(localStorage.getItem('all_scores')) || [];
+                
+                // gameScore 요소가 없으므로 주석 처리
+                // document.getElementById('gameScore').textContent = `${this.score}/3`;
+                
+                // 점수 순위에 따른 메달 이모지
+                const getMedalEmoji = (score) => {
+                    const ratio = score / 12;
+                    if (ratio >= 0.9) return '🥇'; // 90% 이상
+                    if (ratio >= 0.7) return '🥈'; // 70% 이상
+                    if (ratio >= 0.4) return '🥉'; // 40% 이상
+                    return '';
+                };
+                
+                // 유효한 점수 데이터만 필터링하고 정렬
+                const validScores = allScores
+                    .filter(entry => typeof entry === 'object' && entry.score !== undefined)
+                    .sort((a, b) => {
+                        if (b.score !== a.score) {
+                            return b.score - a.score; // 점수 내림차순
+                        }
+                        return b.time.localeCompare(a.time); // 같은 점수면 시간 내림차순 (최신이 앞)
+                    });
+                
+                const rankingContainer = document.getElementById('scoreRanking');
+                
+                if (validScores.length === 0) {
+                    rankingContainer.innerHTML = '<div class="ranking-group"><div class="ranking-item"><div class="ranking-left"><span class="ranking-emoji">📝</span><span class="ranking-score">아직 기록이 없습니다</span></div></div></div>';
+                    return;
+                }
+                
+                // 점수별로 그룹핑
+                const groupedScores = {};
+                validScores.forEach(entry => {
+                    if (!groupedScores[entry.score]) {
+                        groupedScores[entry.score] = [];
+                    }
+                    groupedScores[entry.score].push(entry);
+                });
+                
+                // 점수 내림차순으로 정렬된 키들
+                const sortedScores = Object.keys(groupedScores).sort((a, b) => b - a);
+                
+                // 그룹별로 표시
+                rankingContainer.innerHTML = sortedScores.map(score => {
+                    const entries = groupedScores[score];
+                    const medalEmoji = getMedalEmoji(parseInt(score));
+                    
+                    // 닉네임들을 콤마로 구분하여 배치 (날짜 정보 제거)
+                    const nicknames = entries.map(entry => {
+                        return entry.nickname;
+                    }).join(', ');
+                    
+                    return `
+                        <div class="ranking-group">
+                            <div class="ranking-group-header">
+                                <span class="ranking-emoji">${medalEmoji}</span>
+                                <span class="ranking-score">${score}개</span>
+                            </div>
+                            <div class="nicknames-list">
+                                <span class="nickname-item">${nicknames}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        let playerNickname = '';
+        let gameInstance = null;
+
+        function startGame() {
+            const nickname = document.getElementById('nicknameInput').value.trim();
+            
+            if (nickname === '') {
+                alert('닉네임을 입력해주세요!');
+                return;
+            }
+            
+            playerNickname = nickname;
+            
+            // Reset game screen visibility
+            document.getElementById('nicknameScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'flex';
+            document.getElementById('gameArea').style.display = 'flex';
+            document.getElementById('resultsScreen').classList.remove('active');
+            document.querySelector('.game-screen .header').style.display = 'block';
+            
+            // Reset background
+            document.body.classList.remove('left-active', 'right-active');
+            document.body.classList.add('neutral');
+            
+            // Initialize new game instance
+            gameInstance = new TwinGuessingGame();
+        }
+
+        function restartGame() {
+            // Cleanup existing game instance
+            if (gameInstance) {
+                gameInstance = null;
+            }
+            
+            // Reset background to black
+            document.body.classList.remove('left-active', 'right-active');
+            document.body.classList.add('neutral');
+            
+            // Hide game screen and results completely
+            document.getElementById('gameScreen').style.display = 'none';
+            document.getElementById('resultsScreen').classList.remove('active');
+            document.getElementById('gameArea').style.display = 'flex';
+            
+            // Reset any card animations
+            const photoCard = document.getElementById('photoCard');
+            if (photoCard) {
+                photoCard.style.transition = '';
+                photoCard.style.transform = '';
+                photoCard.style.filter = '';
+                photoCard.style.opacity = '';
+            }
+            
+            // Show nickname screen
+            document.getElementById('nicknameScreen').style.display = 'flex';
+            
+            // Clear nickname input and focus
+            const nicknameInput = document.getElementById('nicknameInput');
+            nicknameInput.value = '';
+            document.getElementById('startBtn').disabled = true;
+            
+            // Reset player nickname
+            playerNickname = '';
+            
+            setTimeout(() => {
+                nicknameInput.focus();
+            }, 100);
+        }
+
+
+        // Focus on nickname input when page loads
+        window.onload = function() {
+            const nicknameInput = document.getElementById('nicknameInput');
+            
+            // Auto focus with slight delay for better UX
+            setTimeout(() => {
+                nicknameInput.focus();
+            }, 500);
+            
+            // Enable enter key to start game
+            nicknameInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    startGame();
+                }
+            });
+            
+            // Enable/disable start button based on input
+            nicknameInput.addEventListener('input', function() {
+                const startBtn = document.getElementById('startBtn');
+                if (this.value.trim() === '') {
+                    startBtn.disabled = true;
+                } else {
+                    startBtn.disabled = false;
+                }
+            });
+            
+            // Initially disable start button
+            document.getElementById('startBtn').disabled = true;
+        };
+    </script>
+</body>
+</html>

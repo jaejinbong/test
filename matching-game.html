@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>쌍둥이 맞추기 게임</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .game-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .score {
+            color: #4CAF50;
+        }
+
+        .moves {
+            color: #FF9800;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .card {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            color: white;
+            transform: perspective(1000px);
+            transition: all 0.6s;
+            position: relative;
+            border: 3px solid transparent;
+        }
+
+        .card:hover {
+            transform: perspective(1000px) scale(1.05);
+            border-color: #fff;
+        }
+
+        .card.flipped {
+            background: linear-gradient(45deg, #74b9ff, #0984e3);
+            transform: perspective(1000px) rotateY(180deg);
+        }
+
+        .card.matched {
+            background: linear-gradient(45deg, #00b894, #00a085);
+            cursor: default;
+            transform: perspective(1000px) scale(0.95);
+        }
+
+        .card.matched:hover {
+            transform: perspective(1000px) scale(0.95);
+            border-color: transparent;
+        }
+
+        .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            border-radius: 7px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            backface-visibility: hidden;
+        }
+
+        .card-front {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #74b9ff, #0984e3);
+            border-radius: 7px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            transform: rotateY(180deg);
+            backface-visibility: hidden;
+        }
+
+        .restart-btn {
+            background: linear-gradient(45deg, #6c5ce7, #a29bfe);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .restart-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .win-message {
+            font-size: 1.5em;
+            color: #00b894;
+            font-weight: bold;
+            margin: 20px 0;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .win-message.show {
+            opacity: 1;
+        }
+
+        @keyframes flip {
+            0% { transform: perspective(1000px) rotateY(0deg); }
+            50% { transform: perspective(1000px) rotateY(-90deg); }
+            100% { transform: perspective(1000px) rotateY(-180deg); }
+        }
+
+        .card.flipping {
+            animation: flip 0.6s;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🎯 쌍둥이 맞추기</h1>
+        <div class="game-info">
+            <div class="score">점수: <span id="score">0</span></div>
+            <div class="moves">움직임: <span id="moves">0</span></div>
+        </div>
+        <div class="game-board" id="gameBoard"></div>
+        <div class="win-message" id="winMessage">🎉 축하합니다! 모든 쌍을 찾았습니다!</div>
+        <button class="restart-btn" onclick="startGame()">새 게임 시작</button>
+    </div>
+
+    <script>
+        class MatchingGame {
+            constructor() {
+                this.gameBoard = document.getElementById('gameBoard');
+                this.scoreElement = document.getElementById('score');
+                this.movesElement = document.getElementById('moves');
+                this.winMessage = document.getElementById('winMessage');
+                
+                this.cards = [];
+                this.flippedCards = [];
+                this.matchedPairs = 0;
+                this.moves = 0;
+                this.score = 0;
+                this.canFlip = true;
+                
+                this.emojis = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼'];
+                
+                this.init();
+            }
+
+            init() {
+                this.createCards();
+                this.shuffleCards();
+                this.renderCards();
+                this.updateScore();
+            }
+
+            createCards() {
+                this.cards = [];
+                for (let i = 0; i < this.emojis.length; i++) {
+                    this.cards.push({
+                        id: i * 2,
+                        emoji: this.emojis[i],
+                        isFlipped: false,
+                        isMatched: false
+                    });
+                    this.cards.push({
+                        id: i * 2 + 1,
+                        emoji: this.emojis[i],
+                        isFlipped: false,
+                        isMatched: false
+                    });
+                }
+            }
+
+            shuffleCards() {
+                for (let i = this.cards.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
+                }
+            }
+
+            renderCards() {
+                this.gameBoard.innerHTML = '';
+                this.cards.forEach((card, index) => {
+                    const cardElement = document.createElement('div');
+                    cardElement.className = 'card';
+                    cardElement.dataset.index = index;
+                    
+                    const cardBack = document.createElement('div');
+                    cardBack.className = 'card-back';
+                    cardBack.textContent = '❓';
+                    
+                    const cardFront = document.createElement('div');
+                    cardFront.className = 'card-front';
+                    cardFront.textContent = card.emoji;
+                    
+                    cardElement.appendChild(cardBack);
+                    cardElement.appendChild(cardFront);
+                    
+                    cardElement.addEventListener('click', () => this.flipCard(index));
+                    this.gameBoard.appendChild(cardElement);
+                });
+            }
+
+            flipCard(index) {
+                if (!this.canFlip) return;
+                
+                const card = this.cards[index];
+                const cardElement = this.gameBoard.children[index];
+                
+                if (card.isFlipped || card.isMatched) return;
+                if (this.flippedCards.length >= 2) return;
+
+                card.isFlipped = true;
+                cardElement.classList.add('flipped', 'flipping');
+                this.flippedCards.push(index);
+
+                if (this.flippedCards.length === 2) {
+                    this.moves++;
+                    this.updateScore();
+                    this.canFlip = false;
+                    
+                    setTimeout(() => {
+                        this.checkMatch();
+                    }, 600);
+                }
+            }
+
+            checkMatch() {
+                const [firstIndex, secondIndex] = this.flippedCards;
+                const firstCard = this.cards[firstIndex];
+                const secondCard = this.cards[secondIndex];
+                const firstElement = this.gameBoard.children[firstIndex];
+                const secondElement = this.gameBoard.children[secondIndex];
+
+                if (firstCard.emoji === secondCard.emoji) {
+                    firstCard.isMatched = true;
+                    secondCard.isMatched = true;
+                    firstElement.classList.add('matched');
+                    secondElement.classList.add('matched');
+                    
+                    this.matchedPairs++;
+                    this.score += 10;
+                    this.updateScore();
+                    
+                    if (this.matchedPairs === this.emojis.length) {
+                        this.winGame();
+                    }
+                } else {
+                    setTimeout(() => {
+                        firstCard.isFlipped = false;
+                        secondCard.isFlipped = false;
+                        firstElement.classList.remove('flipped', 'flipping');
+                        secondElement.classList.remove('flipped', 'flipping');
+                    }, 1000);
+                }
+
+                this.flippedCards = [];
+                this.canFlip = true;
+            }
+
+            updateScore() {
+                this.scoreElement.textContent = this.score;
+                this.movesElement.textContent = this.moves;
+            }
+
+            winGame() {
+                this.winMessage.classList.add('show');
+                const bonus = Math.max(0, 100 - this.moves * 2);
+                this.score += bonus;
+                this.updateScore();
+                
+                setTimeout(() => {
+                    alert(`축하합니다! 🎉\n\n총 점수: ${this.score}점\n움직임: ${this.moves}번\n보너스: ${bonus}점`);
+                }, 500);
+            }
+
+            restart() {
+                this.matchedPairs = 0;
+                this.moves = 0;
+                this.score = 0;
+                this.flippedCards = [];
+                this.canFlip = true;
+                this.winMessage.classList.remove('show');
+                
+                this.cards.forEach(card => {
+                    card.isFlipped = false;
+                    card.isMatched = false;
+                });
+                
+                this.shuffleCards();
+                this.renderCards();
+                this.updateScore();
+            }
+        }
+
+        let game;
+
+        function startGame() {
+            game = new MatchingGame();
+        }
+
+        window.onload = function() {
+            startGame();
+        };
+    </script>
+</body>
+</html>
