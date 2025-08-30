@@ -1461,80 +1461,33 @@
                 
                 document.getElementById('scoreMessage').textContent = `${this.score}/12개 맞추셨어요!`;
                 
-                this.saveScore();
-                this.updateDashboard();
-                
-                // 스크롤 필요 여부에 따른 정렬 조정
-                setTimeout(() => {
-                    this.adjustResultsAlignment();
-                }, 100);
+                // 비동기로 점수 저장과 대시보드 업데이트
+                this.saveAndUpdateAsync();
             }
-
-            adjustResultsAlignment() {
-                const resultsContent = document.querySelector('.results-content');
-                const resultsScreen = document.getElementById('resultsScreen');
-                
-                if (resultsContent && resultsScreen) {
-                    const contentHeight = resultsContent.scrollHeight;
-                    const screenHeight = resultsScreen.clientHeight;
+            
+            async saveAndUpdateAsync() {
+                try {
+                    // 점수 저장 (비동기)
+                    await this.saveScore();
                     
-                    if (contentHeight > screenHeight) {
-                        // 스크롤이 필요한 경우 상단 정렬
-                        resultsContent.style.justifyContent = 'flex-start';
-                        resultsContent.style.paddingTop = '20px';
-                    } else {
-                        // 스크롤이 불필요한 경우 중앙 정렬
-                        resultsContent.style.justifyContent = 'center';
-                        resultsContent.style.paddingTop = '0';
-                    }
+                    // 대시보드 업데이트 (비동기)
+                    await this.updateDashboard();
+                    
+                    // 스크롤 필요 여부에 따른 정렬 조정
+                    setTimeout(() => {
+                        this.adjustResultsAlignment();
+                    }, 100);
+                    
+                } catch (error) {
+                    console.error('📊 랭킹 데이터 처리 오류:', error);
+                    // 오류 발생 시 로컬 데이터로만 업데이트
+                    const localScores = JSON.parse(localStorage.getItem('all_scores')) || [];
+                    this.displayRankings(localScores);
                 }
             }
-
-            updateDynamicTitle() {
-                const titleElement = document.getElementById('dynamicTitle');
-                
-                const scoreRatio = this.score / 12;
-                
-                if (scoreRatio >= 0.9) {
-                    // 90% 이상 (11-12개)
-                    titleElement.textContent = '어...엄마..? 😱';
-                } else if (scoreRatio >= 0.7) {
-                    // 70% 이상 (8-10개)
-                    titleElement.textContent = '도치 이모, 삼촌 인정! 👍';
-                } else if (scoreRatio >= 0.4) {
-                    // 40% 이상 (5-7개)
-                    titleElement.textContent = '한 번 방문하셔야겠어요...! 🏠';
-                } else {
-                    // 40% 미만 (0-4개)
-                    titleElement.textContent = '실망이에요..! 😞';
-                }
-            }
-
-            saveScore() {
-                let allScores = JSON.parse(localStorage.getItem('all_scores')) || [];
-                
-                const timestamp = new Date().toLocaleTimeString('ko-KR', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-                
-                const date = new Date().toLocaleDateString('ko-KR', {
-                    month: 'short',
-                    day: 'numeric'
-                });
-                
-                allScores.push({
-                    score: this.score,
-                    time: timestamp,
-                    date: date,
-                    nickname: playerNickname
-                });
-                
-                localStorage.setItem('all_scores', JSON.stringify(allScores));
-            }
-
-            updateDashboard() {
-                const allScores = JSON.parse(localStorage.getItem('all_scores')) || [];
+            
+            displayRankings(allScores) {
+                // 기존 updateDashboard 로직을 분리한 메소드
                 
                 // gameScore 요소가 없으므로 주석 처리
                 // document.getElementById('gameScore').textContent = `${this.score}/3`;
@@ -1598,6 +1551,237 @@
                         </div>
                     `;
                 }).join('');
+            }
+
+            adjustResultsAlignment() {
+                const resultsContent = document.querySelector('.results-content');
+                const resultsScreen = document.getElementById('resultsScreen');
+                
+                if (resultsContent && resultsScreen) {
+                    const contentHeight = resultsContent.scrollHeight;
+                    const screenHeight = resultsScreen.clientHeight;
+                    
+                    if (contentHeight > screenHeight) {
+                        // 스크롤이 필요한 경우 상단 정렬
+                        resultsContent.style.justifyContent = 'flex-start';
+                        resultsContent.style.paddingTop = '20px';
+                    } else {
+                        // 스크롤이 불필요한 경우 중앙 정렬
+                        resultsContent.style.justifyContent = 'center';
+                        resultsContent.style.paddingTop = '0';
+                    }
+                }
+            }
+
+            updateDynamicTitle() {
+                const titleElement = document.getElementById('dynamicTitle');
+                
+                const scoreRatio = this.score / 12;
+                
+                if (scoreRatio >= 0.9) {
+                    // 90% 이상 (11-12개)
+                    titleElement.textContent = '어...엄마..? 😱';
+                } else if (scoreRatio >= 0.7) {
+                    // 70% 이상 (8-10개)
+                    titleElement.textContent = '도치 이모, 삼촌 인정! 👍';
+                } else if (scoreRatio >= 0.4) {
+                    // 40% 이상 (5-7개)
+                    titleElement.textContent = '한 번 방문하셔야겠어요...! 🏠';
+                } else {
+                    // 40% 미만 (0-4개)
+                    titleElement.textContent = '실망이에요..! 😞';
+                }
+            }
+
+            async saveScore() {
+                // 로컬 저장도 유지 (백업용)
+                let localScores = JSON.parse(localStorage.getItem('all_scores')) || [];
+                
+                const timestamp = new Date().toLocaleTimeString('ko-KR', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                const date = new Date().toLocaleDateString('ko-KR', {
+                    month: 'short',
+                    day: 'numeric'
+                });
+                
+                const newScore = {
+                    score: this.score,
+                    time: timestamp,
+                    date: date,
+                    nickname: playerNickname,
+                    id: Date.now() + Math.random() // 고유 ID 추가
+                };
+                
+                localScores.push(newScore);
+                localStorage.setItem('all_scores', JSON.stringify(localScores));
+                
+                // GitHub Gist에 저장 시도
+                try {
+                    await this.saveScoreToGist(newScore);
+                } catch (error) {
+                    console.error('📊 Gist 저장 실패:', error);
+                    // Gist 저장 실패해도 로컬 기록은 유지
+                }
+            }
+
+            async updateDashboard() {
+                // GitHub Gist에서 데이터 로드 시도, 실패시 로컬 데이터 사용
+                let allScores = [];
+                
+                try {
+                    allScores = await this.loadScoresFromGist();
+                    console.log('📊 Gist에서 데이터 로드 성공:', allScores.length, '개');
+                } catch (error) {
+                    console.error('📊 Gist 로드 실패, 로컬 데이터 사용:', error);
+                    allScores = JSON.parse(localStorage.getItem('all_scores')) || [];
+                }
+                
+                this.displayRankings(allScores);
+            }
+                
+                // gameScore 요소가 없으므로 주석 처리
+                // document.getElementById('gameScore').textContent = `${this.score}/3`;
+                
+                // 순위에 따른 메달 이모지 (점수가 아닌 순위 기준)
+                const getMedalEmoji = (position) => {
+                    if (position === 0) return '🥇'; // 1등
+                    if (position === 1) return '🥈'; // 2등
+                    if (position === 2) return '🥉'; // 3등
+                    return '';
+                };
+                
+                // 유효한 점수 데이터만 필터링하고 정렬
+                const validScores = allScores
+                    .filter(entry => typeof entry === 'object' && entry.score !== undefined)
+                    .sort((a, b) => {
+                        if (b.score !== a.score) {
+                            return b.score - a.score; // 점수 내림차순
+                        }
+                        return b.time.localeCompare(a.time); // 같은 점수면 시간 내림차순 (최신이 앞)
+                    });
+                
+                const rankingContainer = document.getElementById('scoreRanking');
+                
+                if (validScores.length === 0) {
+                    rankingContainer.innerHTML = '<div class="ranking-group"><div class="ranking-item"><div class="ranking-left"><span class="ranking-emoji">📝</span><span class="ranking-score">아직 기록이 없습니다</span></div></div></div>';
+                    return;
+                }
+                
+                // 점수별로 그룹핑
+                const groupedScores = {};
+                validScores.forEach(entry => {
+                    if (!groupedScores[entry.score]) {
+                        groupedScores[entry.score] = [];
+                    }
+                    groupedScores[entry.score].push(entry);
+                });
+                
+                // 점수 내림차순으로 정렬된 키들
+                const sortedScores = Object.keys(groupedScores).sort((a, b) => b - a);
+                
+                // 그룹별로 표시 (순위별 메달 적용)
+                rankingContainer.innerHTML = sortedScores.map((score, groupIndex) => {
+                    const entries = groupedScores[score];
+                    const medalEmoji = getMedalEmoji(groupIndex); // 그룹 순서(순위)로 메달 결정
+                    
+                    // 닉네임들을 콤마로 구분하여 배치 (날짜 정보 제거)
+                    const nicknames = entries.map(entry => {
+                        return entry.nickname;
+                    }).join(', ');
+                    
+                    return `
+                        <div class="ranking-group">
+                            <div class="ranking-group-header">
+                                <span class="ranking-emoji">${medalEmoji}</span>
+                                <span class="ranking-score">${score}개</span>
+                            </div>
+                            <div class="nicknames-list">
+                                <span class="nickname-item">${nicknames}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            // GitHub Gist API 메소드들
+            async saveScoreToGist(scoreData) {
+                // 임시 Gist ID - 실제로는 사용자가 생성한 Gist ID를 사용해야 함
+                const gistId = 'a952ef0ea0aa59f9d039bb9df5c446a2'; // 이 값을 실제 Gist ID로 교체 필요
+                const gistUrl = `https://api.github.com/gists/${gistId}`;
+                
+                // 기존 데이터 로드
+                let existingScores = [];
+                try {
+                    const response = await fetch(gistUrl);
+                    if (response.ok) {
+                        const gist = await response.json();
+                        const content = gist.files['rankings.json']?.content;
+                        if (content) {
+                            existingScores = JSON.parse(content);
+                        }
+                    }
+                } catch (error) {
+                    console.log('📊 기존 데이터 로드 실패, 새 데이터로 시작:', error);
+                }
+                
+                // 새 데이터 추가
+                existingScores.push(scoreData);
+                
+                // 최대 1000개로 제한 (성능 최적화)
+                if (existingScores.length > 1000) {
+                    existingScores.sort((a, b) => {
+                        if (b.score !== a.score) return b.score - a.score;
+                        return new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time);
+                    });
+                    existingScores = existingScores.slice(0, 1000);
+                }
+                
+                // 익명 사용자로 Gist 업데이트 (인증 불필요)
+                const updateData = {
+                    description: '가을하늘 맞추기 게임 랭킹',
+                    files: {
+                        'rankings.json': {
+                            content: JSON.stringify(existingScores, null, 2)
+                        }
+                    }
+                };
+                
+                // 익명 PATCH 요청 (브라우저 제한으로 실패할 수 있음)
+                const updateResponse = await fetch(gistUrl, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updateData)
+                });
+                
+                if (!updateResponse.ok) {
+                    throw new Error(`Gist update failed: ${updateResponse.status}`);
+                }
+                
+                console.log('📊 Gist에 랭킹 데이터 저장 성공');
+            }
+            
+            async loadScoresFromGist() {
+                const gistId = 'a952ef0ea0aa59f9d039bb9df5c446a2'; // 이 값을 실제 Gist ID로 교체 필요
+                const gistUrl = `https://api.github.com/gists/${gistId}`;
+                
+                const response = await fetch(gistUrl);
+                if (!response.ok) {
+                    throw new Error(`Gist load failed: ${response.status}`);
+                }
+                
+                const gist = await response.json();
+                const content = gist.files['rankings.json']?.content;
+                
+                if (!content) {
+                    return []; // 비어있으면 빈 배열 반환
+                }
+                
+                return JSON.parse(content);
             }
         }
 
