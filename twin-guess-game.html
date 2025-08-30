@@ -765,7 +765,7 @@
                 this.currentY = 0;
                 this.initialTransform = '';
                 
-                this.initializeGame();
+                // 생성자에서는 기본 설정만, 초기화는 initializeAndStart()에서 수행
                 this.setupDragAndDrop();
             }
 
@@ -774,6 +774,33 @@
                 
                 // 백그라운드에서 이미지 준비 (닉네임 화면이 표시되는 동안)
                 this.prepareImagesInBackground();
+            }
+            
+            // 새로운 메소드: 초기화와 게임 시작을 순차적으로 수행
+            async initializeAndStart() {
+                console.log('🚀 Starting complete game initialization...');
+                
+                try {
+                    // 1단계: 필수 요소 로드 (사진 경로 수집)
+                    await this.loadAvailablePhotos();
+                    console.log('📸 Photos loaded:', this.availablePhotos);
+                    
+                    // 2단계: 게임 문제 생성
+                    this.shuffleQuestions();
+                    console.log('🎲 Questions generated:', this.questions.length);
+                    
+                    // 3단계: 백그라운드에서 이미지 프리로드 시작
+                    this.preloadAllImages(); // 비동기로 시작
+                    
+                    // 4단계: 게임 시작 (프리로딩과 병렬)
+                    await this.startGameplay();
+                    
+                } catch (error) {
+                    console.error('❌ Initialization error:', error);
+                    // 에러 발생 시도 게임 진행
+                    this.shuffleQuestions();
+                    await this.startGameplay();
+                }
             }
 
             async prepareImagesInBackground() {
@@ -807,16 +834,8 @@
             async startGameplay() {
                 console.log('🎮 Starting gameplay...');
                 
-                // 이미지가 아직 준비되지 않았으면 로딩 화면 표시
-                if (!this.imagesReady) {
-                    document.getElementById('loadingScreen').classList.remove('hidden');
-                    
-                    // 이미지 준비 완료까지 대기
-                    await this.waitForImages();
-                    
-                    document.getElementById('loadingScreen').classList.add('hidden');
-                }
-                
+                // 기본 데이터 로드가 완료되었으므로 바로 게임 시작
+                // 프리로딩이 완료되지 않았어도 일반 로딩으로 처리 가능
                 this.updateProgress();
                 await this.loadQuestion();
             }
@@ -1606,9 +1625,9 @@
             document.body.classList.remove('left-active', 'right-active');
             document.body.classList.add('neutral');
             
-            // Initialize new game instance and start gameplay
+            // Initialize new game instance with proper initialization
             gameInstance = new TwinGuessingGame();
-            await gameInstance.startGameplay();
+            await gameInstance.initializeAndStart();
         }
 
         function restartGame() {
