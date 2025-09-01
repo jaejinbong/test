@@ -736,6 +736,40 @@
     </div>
 
     <script>
+        // 기본 변수
+        let playerNickname = '';
+        let gameInstance = null;
+        
+        // 기본 초기화
+        console.log('📝 JavaScript 스크립트 로드 시작');
+        
+        function startGame() {
+            console.log('🎯 Start button clicked!');
+            const nickname = document.getElementById('nicknameInput').value.trim();
+            
+            if (nickname === '') {
+                alert('닉네임을 입력해주세요!'); // 이건 유지 (사용자 안내용)
+                return;
+            }
+            
+            playerNickname = nickname;
+            console.log('👤 Nickname set:', playerNickname);
+            
+            // 화면 전환
+            document.getElementById('nicknameScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'flex';
+            
+            console.log('📺 Screen switched to game');
+        }
+        
+        function restartGame() {
+            document.getElementById('nicknameScreen').style.display = 'block';
+            document.getElementById('gameScreen').style.display = 'none';
+            document.getElementById('resultsScreen').classList.remove('active');
+        }
+        
+        // TwinGuessingGame 클래스 임시 비활성화 (구문 오류 확인용)
+        /*
         class TwinGuessingGame {
             constructor() {
                 this.currentQuestion = 0;
@@ -781,25 +815,54 @@
                 console.log('🚀 Starting complete game initialization...');
                 
                 try {
+                    console.log('🔄 Step 1: Loading available photos...');
                     // 1단계: 필수 요소 로드 (사진 경로 수집)
                     await this.loadAvailablePhotos();
                     console.log('📸 Photos loaded:', this.availablePhotos);
                     
+                    console.log('🔄 Step 2: Generating questions...');
                     // 2단계: 게임 문제 생성
                     this.shuffleQuestions();
-                    console.log('🎲 Questions generated:', this.questions.length);
+                    console.log('🎲 Questions generated:', this.questions.length, 'questions');
                     
+                    if (this.questions.length === 0) {
+                        throw new Error('No questions generated');
+                    }
+                    
+                    console.log('🔄 Step 3: Starting background preload...');
                     // 3단계: 백그라운드에서 이미지 프리로드 시작
                     this.preloadAllImages(); // 비동기로 시작
                     
+                    console.log('🔄 Step 4: Starting gameplay...');
                     // 4단계: 게임 시작 (프리로딩과 병렬)
                     await this.startGameplay();
                     
+                    console.log('✅ Game initialization complete!');
+                    
                 } catch (error) {
                     console.error('❌ Initialization error:', error);
-                    // 에러 발생 시도 게임 진행
-                    this.shuffleQuestions();
-                    await this.startGameplay();
+                    console.log('🔄 Attempting fallback initialization...');
+                    
+                    try {
+                        // 에러 발생 시 기본 초기화 시도
+                        this.questions = [];
+                        for (let i = 0; i < 12; i++) {
+                            const randomBaby = ['가을', '하늘'][Math.floor(Math.random() * 2)];
+                            this.questions.push({
+                                baby: randomBaby,
+                                description: `${i + 1}번째 문제`,
+                                imagePath: null
+                            });
+                        }
+                        console.log('🎲 Fallback questions generated:', this.questions.length);
+                        
+                        await this.startGameplay();
+                        console.log('✅ Fallback initialization complete!');
+                        
+                    } catch (fallbackError) {
+                        console.error('❌ Fallback initialization also failed:', fallbackError);
+                        throw fallbackError;
+                    }
                 }
             }
 
@@ -1784,35 +1847,62 @@
                 return JSON.parse(content);
             }
         }
+        */
+        // 클래스 주석 끝
 
-        let playerNickname = '';
-        let gameInstance = null;
+        // 새로운 전역 변수 (기존 변수와 중복되지 않게 주의)
+        // let playerNickname = '';
+        // let gameInstance = null; // 주석 처리 중복 방지
 
+        /*
+        // 기존 복잡한 startGame 함수 주석 처리
         async function startGame() {
+            alert('시작 버튼 클릭됨!'); // 즉시 확인
+            console.log('🎯 Start button clicked!');
+            
             const nickname = document.getElementById('nicknameInput').value.trim();
+            console.log('👤 Nickname:', nickname);
             
             if (nickname === '') {
                 alert('닉네임을 입력해주세요!');
                 return;
             }
             
-            playerNickname = nickname;
-            
-            // Reset game screen visibility
-            document.getElementById('nicknameScreen').style.display = 'none';
-            document.getElementById('gameScreen').style.display = 'flex';
-            document.getElementById('gameArea').style.display = 'flex';
-            document.getElementById('resultsScreen').classList.remove('active');
-            document.querySelector('.game-screen .header').style.display = 'block';
-            
-            // Reset background
-            document.body.classList.remove('left-active', 'right-active');
-            document.body.classList.add('neutral');
-            
-            // Initialize new game instance with proper initialization
-            gameInstance = new TwinGuessingGame();
-            await gameInstance.initializeAndStart();
+            try {
+                playerNickname = nickname;
+                console.log('📺 Switching to game screen...');
+                
+                // Reset game screen visibility
+                document.getElementById('nicknameScreen').style.display = 'none';
+                document.getElementById('gameScreen').style.display = 'flex';
+                document.getElementById('gameArea').style.display = 'flex';
+                document.getElementById('resultsScreen').classList.remove('active');
+                document.querySelector('.game-screen .header').style.display = 'block';
+                
+                // Reset background
+                document.body.classList.remove('left-active', 'right-active');
+                document.body.classList.add('neutral');
+                
+                console.log('🎮 Creating game instance...');
+                // Initialize new game instance with proper initialization
+                gameInstance = new TwinGuessingGame();
+                
+                console.log('🚀 Starting game initialization...');
+                await gameInstance.initializeAndStart();
+                
+                console.log('✅ Game started successfully!');
+                
+            } catch (error) {
+                console.error('❌ Start game error:', error);
+                alert('게임 시작 중 오류가 발생했습니다: ' + error.message);
+                
+                // 오류 발생 시 화면 복구
+                document.getElementById('nicknameScreen').style.display = 'block';
+                document.getElementById('gameScreen').style.display = 'none';
+            }
         }
+        */
+        // 기존 startGame 함수 주석 끝
 
         function restartGame() {
             // Cleanup existing game instance
@@ -1855,34 +1945,24 @@
         }
 
 
-        // Focus on nickname input when page loads
+        // 페이지 로드 이벤트
         window.onload = function() {
+            console.log('🎉 Page loaded');
+            
             const nicknameInput = document.getElementById('nicknameInput');
+            const startBtn = document.getElementById('startBtn');
             
-            // Auto focus with slight delay for better UX
-            setTimeout(() => {
-                nicknameInput.focus();
-            }, 500);
+            // 버튼 활성화
+            startBtn.disabled = false;
             
-            // Enable enter key to start game
+            // 엔터 키 이벤트
             nicknameInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     startGame();
                 }
             });
             
-            // Enable/disable start button based on input
-            nicknameInput.addEventListener('input', function() {
-                const startBtn = document.getElementById('startBtn');
-                if (this.value.trim() === '') {
-                    startBtn.disabled = true;
-                } else {
-                    startBtn.disabled = false;
-                }
-            });
-            
-            // Initially disable start button
-            document.getElementById('startBtn').disabled = true;
+            console.log('이벤트 리스너 등록 완료');
         };
     </script>
 </body>
