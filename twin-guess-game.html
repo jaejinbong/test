@@ -743,7 +743,7 @@
         // 기본 초기화
         console.log('📝 JavaScript 스크립트 로드 시작');
         
-        function startGame() {
+        async function startGame() {
             console.log('🎯 Start button clicked!');
             const nickname = document.getElementById('nicknameInput').value.trim();
             
@@ -758,14 +758,535 @@
             // 화면 전환
             document.getElementById('nicknameScreen').style.display = 'none';
             document.getElementById('gameScreen').style.display = 'flex';
+            document.getElementById('gameArea').style.display = 'flex';
+            document.getElementById('resultsScreen').classList.remove('active');
+            document.querySelector('.game-screen .header').style.display = 'block';
+            
+            // 배경 초기화
+            document.body.classList.remove('left-active', 'right-active');
+            document.body.classList.add('neutral');
             
             console.log('📺 Screen switched to game');
+            
+            // 간단한 게임 인스턴스 생성
+            gameInstance = new SimpleGame();
+            await gameInstance.start();
         }
         
         function restartGame() {
             document.getElementById('nicknameScreen').style.display = 'block';
             document.getElementById('gameScreen').style.display = 'none';
             document.getElementById('resultsScreen').classList.remove('active');
+        }
+        
+        // 간단한 게임 클래스
+        class SimpleGame {
+            constructor() {
+                this.currentQuestion = 0;
+                this.score = 0;
+                this.questions = [];
+                this.isDragging = false;
+                this.startX = 0;
+                this.startY = 0;
+                this.currentX = 0;
+                this.currentY = 0;
+                
+                this.photoCard = document.getElementById('photoCard');
+                this.gameArea = document.getElementById('gameArea');
+                
+                console.log('🎮 SimpleGame initialized');
+            }
+            
+            async start() {
+                console.log('🚀 Starting simple game');
+                
+                // 사진 로드
+                await this.loadAvailablePhotos();
+                
+                this.generateQuestions();
+                this.setupDragAndDrop();
+                this.loadQuestion();
+            }
+            
+            generateQuestions() {
+                console.log('🎲 Generating questions with photos...');
+                
+                if (!this.availablePhotos) {
+                    console.warn('⚠️ No photos available, using placeholders');
+                    // 폴백: 사진이 없으면 기본 문제 생성
+                    for (let i = 0; i < 12; i++) {
+                        const babies = ['가을', '하늘'];
+                        const randomBaby = babies[Math.floor(Math.random() * babies.length)];
+                        this.questions.push({
+                            baby: randomBaby,
+                            description: `${i + 1}번째 문제`,
+                            imagePath: null
+                        });
+                    }
+                    return;
+                }
+                
+                // 사진이 있으면 사진과 함께 문제 생성
+                const allAvailableImages = [];
+                const babies = ['가을', '하늘'];
+                
+                babies.forEach(baby => {
+                    const images = this.availablePhotos[baby] || [];
+                    images.forEach(imagePath => {
+                        allAvailableImages.push({ baby, imagePath });
+                    });
+                });
+                
+                console.log('📊 Total available images:', allAvailableImages.length);
+                
+                // 12개 문제 생성 (중복 없이)
+                const usedImages = new Set();
+                
+                for (let i = 0; i < 12; i++) {
+                    if (allAvailableImages.length === 0) {
+                        // 사진이 없으면 플레이스홀더
+                        const randomBaby = babies[Math.floor(Math.random() * babies.length)];
+                        this.questions.push({
+                            baby: randomBaby,
+                            description: `${i + 1}번째 문제`,
+                            imagePath: null
+                        });
+                        continue;
+                    }
+                    
+                    // 사용되지 않은 이미지 찾기
+                    const unusedImages = allAvailableImages.filter(img => !usedImages.has(img.imagePath));
+                    
+                    if (unusedImages.length === 0) {
+                        // 모든 이미지를 사용했으면 순환 사용
+                        usedImages.clear();
+                    }
+                    
+                    const availableImages = unusedImages.length > 0 ? unusedImages : allAvailableImages;
+                    const randomImageData = availableImages[Math.floor(Math.random() * availableImages.length)];
+                    
+                    usedImages.add(randomImageData.imagePath);
+                    
+                    this.questions.push({
+                        baby: randomImageData.baby,
+                        description: `${i + 1}번째 문제`,
+                        imagePath: randomImageData.imagePath
+                    });
+                }
+                
+                console.log('🎲 Generated', this.questions.length, 'questions with photos');
+            }
+            
+            async loadAvailablePhotos() {
+                console.log('📸 Loading available photos...');
+                
+                this.availablePhotos = {
+                    '가을': [],
+                    '하늘': []
+                };
+                
+                // 가을이 사진 로드 (1-50번 사진 검사)
+                const extensions = ['jpg', 'JPG', 'jpeg', 'JPEG', 'png', 'PNG'];
+                
+                for (let i = 1; i <= 50; i++) {
+                    const baseName = `images/gaeul/gaeul_${i.toString().padStart(2, '0')}`;
+                    for (const ext of extensions) {
+                        const imagePath = `${baseName}.${ext}`;
+                        if (await this.imageExists(imagePath)) {
+                            this.availablePhotos['가을'].push(imagePath);
+                            console.log('✅ 가을이 사진 발견:', imagePath);
+                            break;
+                        }
+                    }
+                }
+                
+                // 하늘이 사진 로드 (1-50번 사진 검사)
+                for (let i = 1; i <= 50; i++) {
+                    const baseName = `images/haneul/haneul_${i.toString().padStart(2, '0')}`;
+                    for (const ext of extensions) {
+                        const imagePath = `${baseName}.${ext}`;
+                        if (await this.imageExists(imagePath)) {
+                            this.availablePhotos['하늘'].push(imagePath);
+                            console.log('✅ 하늘이 사진 발견:', imagePath);
+                            break;
+                        }
+                    }
+                }
+                
+                console.log('🎆 로드된 사진 총개수:', {
+                    '가을': this.availablePhotos['가을'].length,
+                    '하늘': this.availablePhotos['하늘'].length
+                });
+            }
+            
+            imageExists(imagePath) {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    
+                    const timeout = setTimeout(() => {
+                        resolve(false);
+                    }, 3000);
+                    
+                    img.onload = () => {
+                        clearTimeout(timeout);
+                        resolve(true);
+                    };
+                    
+                    img.onerror = () => {
+                        clearTimeout(timeout);
+                        resolve(false);
+                    };
+                    
+                    img.crossOrigin = 'anonymous';
+                    img.src = imagePath;
+                });
+            }
+            
+            setupDragAndDrop() {
+                if (!this.photoCard) {
+                    console.error('❌ Photo card not found');
+                    return;
+                }
+                
+                // 터치 이벤트
+                this.photoCard.addEventListener('touchstart', this.handleStart.bind(this));
+                this.photoCard.addEventListener('touchmove', this.handleMove.bind(this));
+                this.photoCard.addEventListener('touchend', this.handleEnd.bind(this));
+                
+                // 마우스 이벤트 (데스크톱 테스트용)
+                this.photoCard.addEventListener('mousedown', this.handleStart.bind(this));
+                document.addEventListener('mousemove', this.handleMove.bind(this));
+                document.addEventListener('mouseup', this.handleEnd.bind(this));
+                
+                console.log('🔧 Drag and drop setup complete');
+            }
+            
+            handleStart(e) {
+                e.preventDefault();
+                this.isDragging = true;
+                this.photoCard.classList.add('dragging');
+                this.photoCard.style.transition = 'none';
+                
+                // 햄틱 피드백
+                if (navigator.vibrate) {
+                    navigator.vibrate(10);
+                }
+                
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                this.startX = clientX;
+                this.startY = clientY;
+                this.currentX = 0;
+                this.currentY = 0;
+                
+                console.log('🔄 Drag started');
+            }
+            
+            handleMove(e) {
+                if (!this.isDragging) return;
+                e.preventDefault();
+                
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                this.currentX = clientX - this.startX;
+                this.currentY = clientY - this.startY;
+                
+                const rotation = Math.max(-15, Math.min(15, this.currentX * 0.1));
+                const limitedY = this.currentY * 0.3;
+                
+                requestAnimationFrame(() => {
+                    this.photoCard.style.transform = `translate(-50%, -50%) translate3d(${this.currentX}px, ${limitedY}px, 0) rotate(${rotation}deg) scale(1.0)`;
+                });
+                
+                // 배경색 변경
+                document.body.classList.remove('left-active', 'right-active', 'neutral');
+                
+                if (this.currentX < -50) {
+                    document.body.classList.add('left-active');
+                } else if (this.currentX > 50) {
+                    document.body.classList.add('right-active');
+                } else {
+                    document.body.classList.add('neutral');
+                }
+            }
+            
+            handleEnd(e) {
+                if (!this.isDragging) return;
+                
+                this.isDragging = false;
+                this.photoCard.classList.remove('dragging');
+                
+                const threshold = 80;
+                let selectedAnswer = null;
+                
+                if (this.currentX < -threshold) {
+                    selectedAnswer = '가을';
+                    if (navigator.vibrate) {
+                        navigator.vibrate(30);
+                    }
+                    this.animateCardExit('left');
+                } else if (this.currentX > threshold) {
+                    selectedAnswer = '하늘';
+                    if (navigator.vibrate) {
+                        navigator.vibrate(30);
+                    }
+                    this.animateCardExit('right');
+                } else {
+                    // 중앙으로 복귀
+                    this.photoCard.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                    this.photoCard.style.transform = 'translate(-50%, -50%) translate3d(0, 0, 0) rotate(0deg) scale(1.0)';
+                    
+                    document.body.classList.remove('left-active', 'right-active');
+                    document.body.classList.add('neutral');
+                    
+                    setTimeout(() => {
+                        this.photoCard.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                    }, 400);
+                    return;
+                }
+                
+                if (selectedAnswer) {
+                    console.log('🎯 Selected:', selectedAnswer);
+                    this.showEmojiExplosion(selectedAnswer);
+                    
+                    setTimeout(() => {
+                        this.checkAnswer(selectedAnswer);
+                    }, 300);
+                }
+            }
+            
+            animateCardExit(direction) {
+                const exitX = direction === 'left' ? -300 : 300;
+                this.photoCard.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+                this.photoCard.style.transform = `translate(-50%, -50%) translate3d(${exitX}px, -50px, 0) rotate(${exitX/10}deg) scale(0.8)`;
+                this.photoCard.style.opacity = '0.3';
+                
+                setTimeout(() => {
+                    this.nextQuestion();
+                }, 300);
+            }
+            
+            showEmojiExplosion(selectedAnswer) {
+                const emojiMap = {
+                    '가을': '🍁',
+                    '하늘': '☁️'
+                };
+                
+                const emoji = emojiMap[selectedAnswer] || '✨';
+                const particleCount = Math.floor(Math.random() * 6) + 20; // 20~25개
+                
+                // 시작 위치 결정 (왼쪽 또는 오른쪽 끝)
+                const startSide = selectedAnswer === '가을' ? 'left' : 'right';
+                
+                // 파티클들을 저장할 배열
+                this.activeParticles = this.activeParticles || [];
+                
+                // 폭발적으로 순차적 생성 (팡! 효과)
+                for (let i = 0; i < particleCount; i++) {
+                    setTimeout(() => {
+                        this.createEmojiParticle(emoji, startSide);
+                    }, i * 25); // 더 빠르게 순차적으로 나타남
+                }
+                
+                console.log(`💥 Dynamic emoji explosion: ${emoji} x${particleCount}`);
+            }
+            
+            createEmojiParticle(emoji, startSide) {
+                const particle = document.createElement('div');
+                particle.className = 'emoji-particle';
+                particle.textContent = emoji;
+                
+                // 랜덤 크기 설정 (24px ~ 72px) - 더 화려하게
+                const size = Math.floor(Math.random() * 48) + 24;
+                particle.style.fontSize = `${size}px`;
+                
+                // 시작 위치 설정
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+                let startX, endX;
+                
+                if (startSide === 'left') {
+                    startX = -50; // 화면 왼쪽 밖
+                    endX = Math.random() * (screenWidth * 0.7) + (screenWidth * 0.15); // 화면 중앙 쪽으로
+                } else {
+                    startX = screenWidth + 50; // 화면 오른쪽 밖
+                    endX = Math.random() * (screenWidth * 0.7) + (screenWidth * 0.15); // 화면 중앙 쪽으로
+                }
+                
+                const startY = Math.random() * (screenHeight * 0.3) + (screenHeight * 0.1); // 상단에서 시작
+                const fallDistance = Math.random() * 300 + 400; // 400~700px 떨어짐
+                
+                // 초기 위치 설정
+                particle.style.cssText = `
+                    position: fixed;
+                    left: ${startX}px;
+                    top: ${startY}px;
+                    font-size: ${size}px;
+                    pointer-events: none;
+                    z-index: 9999;
+                    user-select: none;
+                    transition: none;
+                `;
+                
+                document.body.appendChild(particle);
+                this.activeParticles.push(particle);
+                
+                // 애니메이션 시작 (수동으로 CSS transition 사용)
+                requestAnimationFrame(() => {
+                    particle.style.transition = `
+                        left 2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                        top 2s cubic-bezier(0.55, 0.085, 0.68, 0.53),
+                        opacity 0.5s ease-out 1.5s,
+                        transform 2s ease-out
+                    `;
+                    
+                    // 최종 위치로 이동
+                    particle.style.left = endX + 'px';
+                    particle.style.top = (startY + fallDistance) + 'px';
+                    
+                    // 랜덤 회전 효과
+                    const rotation = (Math.random() - 0.5) * 720; // -360도 ~ 360도
+                    particle.style.transform = `rotate(${rotation}deg) scale(0.5)`;
+                    
+                    // 페이드아웃
+                    particle.style.opacity = '0';
+                });
+                
+                // 2.5초 후 제거
+                setTimeout(() => {
+                    if (particle.parentNode) {
+                        particle.parentNode.removeChild(particle);
+                    }
+                    const index = this.activeParticles.indexOf(particle);
+                    if (index > -1) {
+                        this.activeParticles.splice(index, 1);
+                    }
+                }, 2500);
+            }
+            
+            checkAnswer(selectedAnswer) {
+                const currentQ = this.questions[this.currentQuestion];
+                const isCorrect = selectedAnswer === currentQ.baby;
+                
+                if (isCorrect) {
+                    this.score++;
+                    console.log('✅ Correct! Score:', this.score);
+                } else {
+                    console.log('❌ Wrong! Correct answer was:', currentQ.baby);
+                }
+            }
+            
+            nextQuestion() {
+                this.currentQuestion++;
+                
+                if (this.currentQuestion < this.questions.length) {
+                    setTimeout(() => {
+                        this.loadQuestion();
+                    }, 200);
+                } else {
+                    setTimeout(() => {
+                        this.showResults();
+                    }, 800);
+                }
+            }
+            
+            loadQuestion() {
+                if (this.currentQuestion < this.questions.length) {
+                    const question = this.questions[this.currentQuestion];
+                    
+                    console.log(`🎯 Loading question ${this.currentQuestion + 1}:`, question.baby);
+                    
+                    // 진행 업데이트
+                    const progressElement = document.getElementById('gameProgress');
+                    if (progressElement) {
+                        progressElement.textContent = `${this.currentQuestion + 1}/12`;
+                    }
+                    
+                    // 카드 재설정
+                    this.photoCard.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                    this.photoCard.style.transform = 'translate(-50%, -50%) translate3d(0, 0, 0) rotate(0deg) scale(1.0)';
+                    this.photoCard.style.opacity = '1';
+                    
+                    // 플레이스홀더 표시
+                    const photoContainer = this.photoCard.querySelector('.photo-container');
+                    const placeholder = this.photoCard.querySelector('.photo-placeholder');
+                    
+                    // 기존 이미지 제거
+                    const existingImg = photoContainer.querySelector('img');
+                    if (existingImg) {
+                        existingImg.remove();
+                    }
+                    
+                    // 이미지 로드 및 표시
+                    if (question.imagePath) {
+                        console.log('🖼️ Loading image:', question.imagePath);
+                        
+                        const img = new Image();
+                        img.onload = () => {
+                            console.log('✅ Image loaded successfully:', question.imagePath);
+                            placeholder.style.display = 'none';
+                            photoContainer.appendChild(img);
+                        };
+                        
+                        img.onerror = () => {
+                            console.error('❌ Failed to load image:', question.imagePath);
+                            placeholder.style.display = 'flex';
+                            placeholder.innerHTML = `📸<br>${question.description}<br>(이미지 로드 실패)`;
+                        };
+                        
+                        img.crossOrigin = 'anonymous';
+                        img.src = question.imagePath;
+                        
+                        // 로딩 중 플레이스홀더 표시
+                        placeholder.style.display = 'flex';
+                        placeholder.innerHTML = `🔄<br>로딩 중...<br>(${question.baby} 아기)`;
+                        
+                    } else {
+                        // 이미지가 없으면 플레이스홀더 표시
+                        placeholder.style.display = 'flex';
+                        placeholder.innerHTML = `📸<br>${question.description}<br>(${question.baby} 아기 사진)`;
+                    }
+                    
+                    // 배경 초기화
+                    document.body.classList.remove('left-active', 'right-active');
+                    document.body.classList.add('neutral');
+                }
+            }
+            
+            showResults() {
+                console.log('🏆 Game finished! Final score:', this.score, '/', this.questions.length);
+                
+                // 게임 화면 숨기기
+                this.gameArea.style.display = 'none';
+                document.querySelector('.game-screen .header').style.display = 'none';
+                document.getElementById('resultsScreen').classList.add('active');
+                
+                // 배경 초기화
+                document.body.classList.remove('left-active', 'right-active');
+                document.body.classList.add('neutral');
+                
+                // 기본 결과 표시
+                const scoreMessage = document.getElementById('scoreMessage');
+                if (scoreMessage) {
+                    scoreMessage.textContent = `${this.score}/12개 맞추셨어요!`;
+                }
+                
+                const dynamicTitle = document.getElementById('dynamicTitle');
+                if (dynamicTitle) {
+                    const scoreRatio = this.score / 12;
+                    if (scoreRatio >= 0.9) {
+                        dynamicTitle.textContent = '어...엄마..? 😱';
+                    } else if (scoreRatio >= 0.7) {
+                        dynamicTitle.textContent = '도치 이모, 삼촌 인정! 👍';
+                    } else if (scoreRatio >= 0.4) {
+                        dynamicTitle.textContent = '한 번 방문하셔야걶어요...! 🏠';
+                    } else {
+                        dynamicTitle.textContent = '실망이에요..! 😞';
+                    }
+                }
+            }
         }
         
         // TwinGuessingGame 클래스 임시 비활성화 (구문 오류 확인용)
@@ -1850,9 +2371,7 @@
         */
         // 클래스 주석 끝
 
-        // 새로운 전역 변수 (기존 변수와 중복되지 않게 주의)
-        // let playerNickname = '';
-        // let gameInstance = null; // 주석 처리 중복 방지
+        // 주석 처리된 부분 (기존 변수 선언은 맨 위에 있음)
 
         /*
         // 기존 복잡한 startGame 함수 주석 처리
