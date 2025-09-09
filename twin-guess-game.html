@@ -774,9 +774,41 @@
         }
         
         function restartGame() {
-            document.getElementById('nicknameScreen').style.display = 'block';
+            console.log('🔄 Restarting game...');
+            
+            // 게임 인스턴스 완전히 정리
+            if (gameInstance) {
+                console.log('🧹 Cleaning up previous game instance...');
+                // 이전 게임의 이벤트 리스너 정리
+                if (typeof gameInstance.cleanup === 'function') {
+                    gameInstance.cleanup();
+                }
+                gameInstance = null;
+                console.log('✅ Previous game instance destroyed');
+            }
+            
+            // 화면 전환
+            document.getElementById('nicknameScreen').style.display = 'flex';
             document.getElementById('gameScreen').style.display = 'none';
             document.getElementById('resultsScreen').classList.remove('active');
+            
+            // 전역 상태 초기화
+            playerNickname = '';
+            
+            // 닉네임 입력 초기화
+            const nicknameInput = document.getElementById('nicknameInput');
+            const startBtn = document.getElementById('startBtn');
+            nicknameInput.value = '';
+            startBtn.disabled = true;
+            
+            // 닉네임 입력 이벤트 재설정
+            setupNicknameInput();
+            
+            // 포커스 설정
+            setTimeout(() => {
+                nicknameInput.focus();
+                console.log('✅ Restart complete, input focused');
+            }, 100);
         }
         
         // 간단한 게임 클래스
@@ -794,22 +826,49 @@
                 this.photoCard = document.getElementById('photoCard');
                 this.gameArea = document.getElementById('gameArea');
                 
+                // 이벤트 핸들러를 바인딩하여 저장 (나중에 제거할 수 있도록)
+                this.boundHandleStart = this.handleStart.bind(this);
+                this.boundHandleMove = this.handleMove.bind(this);
+                this.boundHandleEnd = this.handleEnd.bind(this);
+                
                 console.log('🎮 SimpleGame initialized');
             }
             
             async start() {
                 console.log('🚀 Starting simple game');
                 
+                // 게임 상태 초기화
+                this.currentQuestion = 0;
+                this.score = 0;
+                this.questions = []; // 명시적으로 빈 배열로 초기화
+                console.log('🔄 Game state reset - currentQuestion:', this.currentQuestion, 'score:', this.score, 'questions cleared');
+                
                 // 사진 로드
+                console.log('📸 About to load photos...');
                 await this.loadAvailablePhotos();
+                console.log('📸 Photos loaded, generating questions...');
                 
                 this.generateQuestions();
+                console.log('✅ Questions generation complete. Total questions:', this.questions.length);
+                
+                // 생성된 문제들을 확인
+                console.log(`🔍 GAME START DEBUG: Generated ${this.questions.length} questions, currentQuestion=${this.currentQuestion}, score=${this.score}`);
+                if (this.questions.length < 12) {
+                    console.error('❌ ERROR: Only', this.questions.length, 'questions generated! Expected 12');
+                } else {
+                    console.log('✅ Correct: 12 questions generated');
+                }
+                
                 this.setupDragAndDrop();
                 this.loadQuestion();
             }
             
             generateQuestions() {
                 console.log('🎲 Generating questions with photos...');
+                
+                // 기존 문제들 초기화
+                this.questions = [];
+                console.log('🔄 Questions array cleared');
                 
                 if (!this.availablePhotos) {
                     console.warn('⚠️ No photos available, using placeholders');
@@ -838,6 +897,25 @@
                 });
                 
                 console.log('📊 Total available images:', allAvailableImages.length);
+                console.log('📊 Available photos by baby:', {
+                    '가을': this.availablePhotos['가을'].length,
+                    '하늘': this.availablePhotos['하늘'].length
+                });
+                
+                // 사진이 너무 적으면 강제로 12개 플레이스홀더 생성
+                if (allAvailableImages.length < 12) {
+                    console.warn('⚠️ Not enough images, creating placeholders for 12 questions');
+                    for (let i = 0; i < 12; i++) {
+                        const randomBaby = babies[Math.floor(Math.random() * babies.length)];
+                        this.questions.push({
+                            baby: randomBaby,
+                            description: `${i + 1}번째 문제`,
+                            imagePath: allAvailableImages[i % allAvailableImages.length]?.imagePath || null
+                        });
+                    }
+                    console.log('🎲 Generated', this.questions.length, 'placeholder questions');
+                    return;
+                }
                 
                 // 12개 문제 생성 (중복 없이)
                 const usedImages = new Set();
@@ -917,6 +995,16 @@
                     '가을': this.availablePhotos['가을'].length,
                     '하늘': this.availablePhotos['하늘'].length
                 });
+                
+                // 총 사진 수 체크
+                const totalPhotos = this.availablePhotos['가을'].length + this.availablePhotos['하늘'].length;
+                console.log('📊 총 사진 수:', totalPhotos);
+                
+                if (totalPhotos === 0) {
+                    console.warn('⚠️ 사진이 전혀 발견되지 않았습니다!');
+                } else if (totalPhotos < 12) {
+                    console.warn(`⚠️ 사진이 ${totalPhotos}개만 발견되었습니다. 12개 문제를 위해 순환 사용됩니다.`);
+                }
             }
             
             imageExists(imagePath) {
@@ -929,39 +1017,52 @@
                     
                     img.onload = () => {
                         clearTimeout(timeout);
+                        console.log('✅ Image loaded successfully:', imagePath);
                         resolve(true);
                     };
                     
-                    img.onerror = () => {
+                    img.onerror = (error) => {
                         clearTimeout(timeout);
+                        console.log('❌ Image failed to load:', imagePath, error);
                         resolve(false);
                     };
                     
-                    img.crossOrigin = 'anonymous';
+                    // img.crossOrigin = 'anonymous'; // 로컬 파일의 경우 CORS 제거
                     img.src = imagePath;
                 });
             }
             
             setupDragAndDrop() {
+                console.log('🔧 Setting up drag and drop...');
+                console.log('📋 PhotoCard element:', this.photoCard);
+                
                 if (!this.photoCard) {
                     console.error('❌ Photo card not found');
                     return;
                 }
                 
-                // 터치 이벤트
-                this.photoCard.addEventListener('touchstart', this.handleStart.bind(this));
-                this.photoCard.addEventListener('touchmove', this.handleMove.bind(this));
-                this.photoCard.addEventListener('touchend', this.handleEnd.bind(this));
+                console.log('✅ Photo card found, setting up events...');
+                
+                // 터치 이벤트 (바인딩된 핸들러 사용)
+                this.photoCard.addEventListener('touchstart', this.boundHandleStart);
+                this.photoCard.addEventListener('touchmove', this.boundHandleMove);
+                this.photoCard.addEventListener('touchend', this.boundHandleEnd);
                 
                 // 마우스 이벤트 (데스크톱 테스트용)
-                this.photoCard.addEventListener('mousedown', this.handleStart.bind(this));
-                document.addEventListener('mousemove', this.handleMove.bind(this));
-                document.addEventListener('mouseup', this.handleEnd.bind(this));
+                this.photoCard.addEventListener('mousedown', this.boundHandleStart);
+                document.addEventListener('mousemove', this.boundHandleMove);
+                document.addEventListener('mouseup', this.boundHandleEnd);
+                
+                // 테스트용 클릭 이벤트 (알람 없이 로그만)
+                this.photoCard.addEventListener('click', () => {
+                    console.log('👆 Photo card clicked!');
+                });
                 
                 console.log('🔧 Drag and drop setup complete');
             }
             
             handleStart(e) {
+                console.log('🔄 handleStart called:', e.type);
                 e.preventDefault();
                 this.isDragging = true;
                 this.photoCard.classList.add('dragging');
@@ -971,6 +1072,8 @@
                 if (navigator.vibrate) {
                     navigator.vibrate(10);
                 }
+                
+                // 디버그 로그만 (alert 제거)
                 
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -1049,11 +1152,12 @@
                 
                 if (selectedAnswer) {
                     console.log('🎯 Selected:', selectedAnswer);
-                    this.showEmojiExplosion(selectedAnswer);
                     
-                    setTimeout(() => {
-                        this.checkAnswer(selectedAnswer);
-                    }, 300);
+                    // 즉시 정답 체크
+                    this.checkAnswer(selectedAnswer);
+                    
+                    // 이모지 효과
+                    this.showEmojiExplosion(selectedAnswer);
                 }
             }
             
@@ -1170,6 +1274,14 @@
                 const currentQ = this.questions[this.currentQuestion];
                 const isCorrect = selectedAnswer === currentQ.baby;
                 
+                console.log('🤔 Answer check:', {
+                    question: this.currentQuestion + 1,
+                    imagePath: currentQ.imagePath,
+                    correctAnswer: currentQ.baby,
+                    selectedAnswer: selectedAnswer,
+                    isCorrect: isCorrect
+                });
+                
                 if (isCorrect) {
                     this.score++;
                     console.log('✅ Correct! Score:', this.score);
@@ -1180,12 +1292,19 @@
             
             nextQuestion() {
                 this.currentQuestion++;
+                console.log(`📈 Next question: ${this.currentQuestion}/${this.questions.length}`);
+                console.log(`📊 Current progress: Question ${this.currentQuestion}, Score: ${this.score}`);
+                console.log(`🔍 DEBUG: currentQuestion=${this.currentQuestion}, questions.length=${this.questions.length}, comparison result=${this.currentQuestion < this.questions.length}`);
                 
                 if (this.currentQuestion < this.questions.length) {
+                    console.log('➡️ Loading next question');
                     setTimeout(() => {
                         this.loadQuestion();
                     }, 200);
                 } else {
+                    console.log(`🏁 Game finished! Final stats: ${this.score}/${this.questions.length} questions`);
+                    console.log(`🚨 GAME END DEBUG: currentQuestion=${this.currentQuestion}, questions.length=${this.questions.length}`);
+                    console.log('🏆 About to show results...');
                     setTimeout(() => {
                         this.showResults();
                     }, 800);
@@ -1201,7 +1320,7 @@
                     // 진행 업데이트
                     const progressElement = document.getElementById('gameProgress');
                     if (progressElement) {
-                        progressElement.textContent = `${this.currentQuestion + 1}/12`;
+                        progressElement.textContent = `${this.currentQuestion + 1}/${this.questions.length}`;
                     }
                     
                     // 카드 재설정
@@ -1236,7 +1355,7 @@
                             placeholder.innerHTML = `📸<br>${question.description}<br>(이미지 로드 실패)`;
                         };
                         
-                        img.crossOrigin = 'anonymous';
+                        // img.crossOrigin = 'anonymous'; // 로컬 파일의 경우 CORS 제거
                         img.src = question.imagePath;
                         
                         // 로딩 중 플레이스홀더 표시
@@ -1270,22 +1389,273 @@
                 // 기본 결과 표시
                 const scoreMessage = document.getElementById('scoreMessage');
                 if (scoreMessage) {
-                    scoreMessage.textContent = `${this.score}/12개 맞추셨어요!`;
+                    console.log('🏆 Final score display:', this.score, '/', this.questions.length);
+                    scoreMessage.textContent = `${this.score}/${this.questions.length}개 맞추셨어요!`;
                 }
                 
                 const dynamicTitle = document.getElementById('dynamicTitle');
                 if (dynamicTitle) {
-                    const scoreRatio = this.score / 12;
+                    const scoreRatio = this.score / this.questions.length;
+                    console.log('📊 Score ratio:', this.score, '/', this.questions.length, '=', scoreRatio);
                     if (scoreRatio >= 0.9) {
                         dynamicTitle.textContent = '어...엄마..? 😱';
                     } else if (scoreRatio >= 0.7) {
                         dynamicTitle.textContent = '도치 이모, 삼촌 인정! 👍';
                     } else if (scoreRatio >= 0.4) {
-                        dynamicTitle.textContent = '한 번 방문하셔야걶어요...! 🏠';
+                        dynamicTitle.textContent = '한 번 방문하셔야겠어요...! 🏠';
                     } else {
                         dynamicTitle.textContent = '실망이에요..! 😞';
                     }
                 }
+                
+                // 랭킹 데이터 저장 및 표시
+                this.saveAndUpdateAsync();
+            }
+
+            cleanup() {
+                console.log('🧹 Cleaning up game instance...');
+                
+                // 게임 상태 완전 초기화
+                this.currentQuestion = 0;
+                this.score = 0;
+                this.questions = [];
+                console.log('🔄 Game state reset - currentQuestion:', this.currentQuestion, 'score:', this.score, 'questions cleared');
+                
+                // 드래그앤드롭 이벤트 리스너 제거 (바인딩된 핸들러 사용)
+                if (this.photoCard) {
+                    this.photoCard.removeEventListener('touchstart', this.boundHandleStart);
+                    this.photoCard.removeEventListener('touchmove', this.boundHandleMove);
+                    this.photoCard.removeEventListener('touchend', this.boundHandleEnd);
+                    this.photoCard.removeEventListener('mousedown', this.boundHandleStart);
+                }
+                
+                // document 레벨 이벤트 리스너 제거
+                document.removeEventListener('mousemove', this.boundHandleMove);
+                document.removeEventListener('mouseup', this.boundHandleEnd);
+                
+                // 활성 파티클 정리
+                if (this.activeParticles) {
+                    this.activeParticles.forEach(particle => {
+                        if (particle.parentNode) {
+                            particle.parentNode.removeChild(particle);
+                        }
+                    });
+                    this.activeParticles = [];
+                }
+                
+                // 타이머 정리 (만약 있다면)
+                if (this.animationTimer) {
+                    clearTimeout(this.animationTimer);
+                }
+                
+                console.log('✅ Game cleanup complete');
+            }
+            
+            async saveAndUpdateAsync() {
+                try {
+                    // 점수 저장
+                    await this.saveScore();
+                    
+                    // 대시보드 업데이트
+                    await this.updateDashboard();
+                    
+                } catch (error) {
+                    console.error('📊 랭킹 데이터 처리 오류:', error);
+                    // 오류 발생 시 로컬 데이터로만 업데이트
+                    const localScores = JSON.parse(localStorage.getItem('all_scores')) || [];
+                    this.displayRankings(localScores);
+                }
+            }
+            
+            async saveScore() {
+                const currentTime = new Date().toISOString();
+                const scoreEntry = {
+                    nickname: playerNickname,
+                    score: this.score,
+                    time: currentTime
+                };
+
+                console.log('💾 Saving score:', scoreEntry);
+
+                // 로컬 저장
+                const localScores = JSON.parse(localStorage.getItem('all_scores')) || [];
+                localScores.push(scoreEntry);
+                localStorage.setItem('all_scores', JSON.stringify(localScores));
+                console.log('💾 Local scores updated:', localScores.length, 'total scores');
+
+                // GitHub Gist에 저장 시도
+                try {
+                    await this.saveScoreToGist(scoreEntry);
+                    console.log('✅ 점수가 GitHub Gist에 저장되었습니다');
+                } catch (error) {
+                    console.warn('⚠️ GitHub Gist 저장 실패, 로컬에만 저장됨:', error);
+                }
+            }
+
+            async saveScoreToGist(scoreEntry) {
+                const gistId = 'a952ef0ea0aa59f9d039bb9df5c446a2';
+                const gistUrl = `https://api.github.com/gists/${gistId}`;
+
+                // 기존 데이터 로드
+                let existingScores = [];
+                try {
+                    const response = await fetch(gistUrl);
+                    if (response.ok) {
+                        const gist = await response.json();
+                        const content = gist.files['rankings.json']?.content;
+                        if (content) {
+                            existingScores = JSON.parse(content);
+                        }
+                    }
+                } catch (error) {
+                    console.warn('기존 Gist 데이터 로드 실패:', error);
+                }
+
+                // 새로운 점수 추가
+                existingScores.push(scoreEntry);
+
+                // 최대 100개까지만 유지 (최신 100개)
+                if (existingScores.length > 100) {
+                    existingScores = existingScores
+                        .sort((a, b) => new Date(b.time) - new Date(a.time))
+                        .slice(0, 100);
+                }
+
+                // 익명으로 Gist 업데이트
+                const updateData = {
+                    description: '가을하늘 맞추기 게임 랭킹',
+                    files: {
+                        'rankings.json': {
+                            content: JSON.stringify(existingScores, null, 2)
+                        }
+                    }
+                };
+
+                const updateResponse = await fetch(gistUrl, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                if (!updateResponse.ok) {
+                    throw new Error(`Gist update failed: ${updateResponse.status}`);
+                }
+            }
+
+            async updateDashboard() {
+                // 로컬 데이터를 우선 사용 (방금 저장한 점수가 확실히 포함됨)
+                let allScores = JSON.parse(localStorage.getItem('all_scores')) || [];
+                console.log('📊 로컬에서 데이터 로드:', allScores.length, '개');
+                
+                // 현재 플레이어 점수가 포함되어 있는지 확인
+                const currentPlayerScore = allScores.find(entry => 
+                    entry.nickname === playerNickname && 
+                    entry.score === this.score
+                );
+                
+                console.log('🎯 Current player score found in rankings:', !!currentPlayerScore);
+                if (currentPlayerScore) {
+                    console.log('🎯 Player score details:', currentPlayerScore);
+                }
+                
+                console.log('📊 Total scores to display:', allScores.length);
+                
+                this.displayRankings(allScores);
+                
+                // 백그라운드에서 Gist 데이터 동기화 시도 (결과 표시에는 영향 없음)
+                try {
+                    const gistScores = await this.loadScoresFromGist();
+                    console.log('📊 Gist 동기화 확인:', gistScores.length, '개');
+                } catch (error) {
+                    console.log('📊 Gist 동기화 실패 (정상):', error.message);
+                }
+            }
+
+            async loadScoresFromGist() {
+                const gistId = 'a952ef0ea0aa59f9d039bb9df5c446a2';
+                const gistUrl = `https://api.github.com/gists/${gistId}`;
+
+                const response = await fetch(gistUrl);
+                if (!response.ok) {
+                    throw new Error(`Gist load failed: ${response.status}`);
+                }
+
+                const gist = await response.json();
+                const content = gist.files['rankings.json']?.content;
+
+                if (!content) {
+                    return [];
+                }
+
+                return JSON.parse(content);
+            }
+
+            displayRankings(allScores) {
+                console.log('🏆 displayRankings called with:', allScores.length, 'scores');
+
+                // 순위에 따른 메달 이모지
+                const getMedalEmoji = (position) => {
+                    if (position === 0) return '🥇';
+                    if (position === 1) return '🥈';
+                    if (position === 2) return '🥉';
+                    return '';
+                };
+
+                // 유효한 점수 데이터만 필터링하고 정렬
+                const validScores = allScores
+                    .filter(entry => typeof entry === 'object' && entry.score !== undefined)
+                    .sort((a, b) => {
+                        if (b.score !== a.score) {
+                            return b.score - a.score;
+                        }
+                        return b.time.localeCompare(a.time);
+                    });
+
+                const rankingContainer = document.getElementById('scoreRanking');
+                console.log('📋 Ranking container found:', !!rankingContainer);
+
+                if (validScores.length === 0) {
+                    console.log('⚠️ No valid scores, showing empty state');
+                    rankingContainer.innerHTML = '<div class="ranking-group"><div class="ranking-item"><div class="ranking-left"><span class="ranking-emoji">📝</span><span class="ranking-score">아직 기록이 없습니다</span></div></div></div>';
+                    return;
+                }
+
+                // 점수별로 그룹핑
+                const groupedScores = {};
+                validScores.forEach(entry => {
+                    if (!groupedScores[entry.score]) {
+                        groupedScores[entry.score] = [];
+                    }
+                    groupedScores[entry.score].push(entry);
+                });
+
+                // 점수 내림차순으로 정렬된 키들
+                const sortedScores = Object.keys(groupedScores).sort((a, b) => b - a);
+
+                // 그룹별로 표시
+                rankingContainer.innerHTML = sortedScores.map((score, groupIndex) => {
+                    const entries = groupedScores[score];
+                    const medalEmoji = getMedalEmoji(groupIndex);
+
+                    // 닉네임들을 콤마로 구분
+                    const nicknames = entries.map(entry => entry.nickname).join(', ');
+
+                    return `
+                        <div class="ranking-group">
+                            <div class="ranking-group-header">
+                                <span class="ranking-emoji">${medalEmoji}</span>
+                                <span class="ranking-score">${score}개</span>
+                            </div>
+                            <div class="nicknames-list">
+                                <span class="nickname-item">${nicknames}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                console.log('✅ Rankings displayed successfully');
             }
         }
         
@@ -1497,26 +1867,26 @@
                 return new Promise((resolve) => {
                     const img = new Image();
                     
-                    // 타임아웃 설정 (5초)
+                    // 타임아웃 설정 (3초로 단축)
                     const timeout = setTimeout(() => {
                         console.log('⏰ Image loading timeout:', imagePath);
                         resolve(false);
-                    }, 5000);
+                    }, 3000);
                     
                     img.onload = () => {
                         clearTimeout(timeout);
-                        console.log('🏆 Image loaded:', imagePath);
+                        console.log('✅ Image loaded successfully:', imagePath);
                         resolve(true);
                     };
                     
-                    img.onerror = () => {
+                    img.onerror = (error) => {
                         clearTimeout(timeout);
-                        console.log('❌ Image not found:', imagePath);
+                        console.log('❌ Image failed to load:', imagePath, error);
                         resolve(false);
                     };
                     
-                    // 크로스 오리진 설정
-                    img.crossOrigin = 'anonymous';
+                    // CORS 설정을 src 설정 전에 해야함
+                    // img.crossOrigin = 'anonymous'; // 로컬 파일의 경우 CORS 제거
                     img.src = imagePath;
                 });
             }
@@ -1666,7 +2036,7 @@
                         reject(new Error('Failed to load image'));
                     };
                     
-                    img.crossOrigin = 'anonymous';
+                    // img.crossOrigin = 'anonymous'; // 로컬 파일의 경우 CORS 제거
                     img.src = imagePath;
                 });
             }
@@ -1726,7 +2096,7 @@
                             placeholder.innerHTML = `📸<br>${question.description}<br>(이미지 로드 실패)`;
                         };
                         
-                        img.crossOrigin = 'anonymous';
+                        // img.crossOrigin = 'anonymous'; // 로컬 파일의 경우 CORS 제거
                         img.src = question.imagePath;
                         
                     } else {
@@ -2071,6 +2441,7 @@
             }
             
             displayRankings(allScores) {
+                console.log('🏆 displayRankings called with:', allScores.length, 'scores');
                 // 기존 updateDashboard 로직을 분리한 메소드
                 
                 // gameScore 요소가 없으므로 주석 처리
@@ -2095,6 +2466,8 @@
                     });
                 
                 const rankingContainer = document.getElementById('scoreRanking');
+                console.log('📋 Ranking container found:', !!rankingContainer);
+                console.log('📊 Valid scores:', validScores.length);
                 
                 if (validScores.length === 0) {
                     rankingContainer.innerHTML = '<div class="ranking-group"><div class="ranking-item"><div class="ranking-left"><span class="ranking-emoji">📝</span><span class="ranking-score">아직 기록이 없습니다</span></div></div></div>';
@@ -2212,18 +2585,32 @@
             }
 
             async updateDashboard() {
-                // GitHub Gist에서 데이터 로드 시도, 실패시 로컬 데이터 사용
-                let allScores = [];
+                // 로컬 데이터를 우선 사용 (방금 저장한 점수가 확실히 포함됨)
+                let allScores = JSON.parse(localStorage.getItem('all_scores')) || [];
+                console.log('📊 로컬에서 데이터 로드:', allScores.length, '개');
                 
-                try {
-                    allScores = await this.loadScoresFromGist();
-                    console.log('📊 Gist에서 데이터 로드 성공:', allScores.length, '개');
-                } catch (error) {
-                    console.error('📊 Gist 로드 실패, 로컬 데이터 사용:', error);
-                    allScores = JSON.parse(localStorage.getItem('all_scores')) || [];
+                // 현재 플레이어 점수가 포함되어 있는지 확인
+                const currentPlayerScore = allScores.find(entry => 
+                    entry.nickname === playerNickname && 
+                    entry.score === this.score
+                );
+                
+                console.log('🎯 Current player score found in rankings:', !!currentPlayerScore);
+                if (currentPlayerScore) {
+                    console.log('🎯 Player score details:', currentPlayerScore);
                 }
                 
+                console.log('📊 Total scores to display:', allScores.length);
+                
                 this.displayRankings(allScores);
+                
+                // 백그라운드에서 Gist 데이터 동기화 시도 (결과 표시에는 영향 없음)
+                try {
+                    const gistScores = await this.loadScoresFromGist();
+                    console.log('📊 Gist 동기화 확인:', gistScores.length, '개');
+                } catch (error) {
+                    console.log('📊 Gist 동기화 실패 (정상):', error.message);
+                }
             }
                 
                 // gameScore 요소가 없으므로 주석 처리
@@ -2423,65 +2810,43 @@
         */
         // 기존 startGame 함수 주석 끝
 
-        function restartGame() {
-            // Cleanup existing game instance
-            if (gameInstance) {
-                gameInstance = null;
-            }
-            
-            // Reset background to black
-            document.body.classList.remove('left-active', 'right-active');
-            document.body.classList.add('neutral');
-            
-            // Hide game screen and results completely
-            document.getElementById('gameScreen').style.display = 'none';
-            document.getElementById('resultsScreen').classList.remove('active');
-            document.getElementById('gameArea').style.display = 'flex';
-            
-            // Reset any card animations
-            const photoCard = document.getElementById('photoCard');
-            if (photoCard) {
-                photoCard.style.transition = '';
-                photoCard.style.transform = '';
-                photoCard.style.filter = '';
-                photoCard.style.opacity = '';
-            }
-            
-            // Show nickname screen
-            document.getElementById('nicknameScreen').style.display = 'flex';
-            
-            // Clear nickname input and focus
-            const nicknameInput = document.getElementById('nicknameInput');
-            nicknameInput.value = '';
-            document.getElementById('startBtn').disabled = true;
-            
-            // Reset player nickname
-            playerNickname = '';
-            
-            setTimeout(() => {
-                nicknameInput.focus();
-            }, 100);
-        }
 
+
+        // 닉네임 입력 이벤트 설정 함수
+        function setupNicknameInput() {
+            const nicknameInput = document.getElementById('nicknameInput');
+            const startBtn = document.getElementById('startBtn');
+            
+            // 입력 이벤트 리스너 (닉네임 입력 시 버튼 활성화)
+            const handleInput = () => {
+                const hasText = nicknameInput.value.trim().length > 0;
+                startBtn.disabled = !hasText;
+                console.log('📝 Input changed, button enabled:', !startBtn.disabled);
+            };
+            
+            // Enter 키 이벤트
+            const handleKeypress = (e) => {
+                if (e.key === 'Enter' && !startBtn.disabled) {
+                    startGame();
+                }
+            };
+            
+            // 기존 이벤트 리스너 제거 후 새로 추가
+            nicknameInput.removeEventListener('input', handleInput);
+            nicknameInput.removeEventListener('keypress', handleKeypress);
+            nicknameInput.addEventListener('input', handleInput);
+            nicknameInput.addEventListener('keypress', handleKeypress);
+            
+            // 초기 상태 설정
+            handleInput();
+            
+            console.log('✅ Nickname input events setup complete');
+        }
 
         // 페이지 로드 이벤트
         window.onload = function() {
             console.log('🎉 Page loaded');
-            
-            const nicknameInput = document.getElementById('nicknameInput');
-            const startBtn = document.getElementById('startBtn');
-            
-            // 버튼 활성화
-            startBtn.disabled = false;
-            
-            // 엔터 키 이벤트
-            nicknameInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    startGame();
-                }
-            });
-            
-            console.log('이벤트 리스너 등록 완료');
+            setupNicknameInput();
         };
     </script>
 </body>
