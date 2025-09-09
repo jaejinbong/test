@@ -1344,11 +1344,9 @@
                     const photoContainer = this.photoCard.querySelector('.photo-container');
                     const placeholder = this.photoCard.querySelector('.photo-placeholder');
                     
-                    // 기존 이미지 제거
-                    const existingImg = photoContainer.querySelector('img');
-                    if (existingImg) {
-                        existingImg.remove();
-                    }
+                    // 기존 모든 이미지 제거
+                    const existingImgs = photoContainer.querySelectorAll('img');
+                    existingImgs.forEach(img => img.remove());
                     
                     // 이미지 로드 및 표시
                     if (question.imagePath) {
@@ -2083,11 +2081,9 @@
                     const photoContainer = this.photoCard.querySelector('.photo-container');
                     const placeholder = this.photoCard.querySelector('.photo-placeholder');
                     
-                    // 기존 이미지 제거
-                    const existingImg = photoContainer.querySelector('img');
-                    if (existingImg) {
-                        existingImg.remove();
-                    }
+                    // 기존 모든 이미지 제거
+                    const existingImgs = photoContainer.querySelectorAll('img');
+                    existingImgs.forEach(img => img.remove());
                     
                     // 프리로드된 이미지가 있는 경우 즉시 표시
                     if (question.imagePath && this.preloadedImages.has(question.imagePath)) {
