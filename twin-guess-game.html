@@ -807,6 +807,12 @@
             // 전역 상태 초기화
             playerNickname = '';
             
+            // 게임 진행도 초기화
+            const progressElement = document.getElementById('gameProgress');
+            if (progressElement) {
+                progressElement.textContent = '1/12';
+            }
+            
             // 닉네임 입력 초기화
             const nicknameInput = document.getElementById('nicknameInput');
             const startBtn = document.getElementById('startBtn');
