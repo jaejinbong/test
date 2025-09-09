@@ -756,16 +756,6 @@
             playerNickname = nickname;
             console.log('👤 Nickname set:', playerNickname);
             
-            // 글로벌 랭킹 데이터 로드 (백그라운드)
-            fetch('https://jaejinbong.github.io/test/rankings.json')
-                .then(response => response.json())
-                .then(rankings => {
-                    localStorage.setItem('global_rankings', JSON.stringify(rankings));
-                    localStorage.setItem('global_rankings_updated', new Date().toISOString());
-                    console.log('📊 글로벌 랭킹 로드 완료:', rankings.length, '개');
-                })
-                .catch(error => console.log('📊 글로벌 랭킹 로드 실패 (정상):', error));
-            
             // 화면 전환
             document.getElementById('nicknameScreen').style.display = 'none';
             document.getElementById('gameScreen').style.display = 'flex';
@@ -1504,64 +1494,61 @@
             }
 
             async saveScoreToGist(scoreEntry) {
-                // GitHub Pages를 통해 공개된 rankings.json 파일 사용
-                const rankingsUrl = 'https://jaejinbong.github.io/test/rankings.json';
-                
+                const gistId = 'a952ef0ea0aa59f9d039bb9df5c446a2';
+                const gistUrl = `https://api.github.com/gists/${gistId}`;
+
                 // 기존 데이터 로드
                 let existingScores = [];
                 try {
-                    const response = await fetch(rankingsUrl);
+                    const response = await fetch(gistUrl);
                     if (response.ok) {
-                        existingScores = await response.json();
+                        const gist = await response.json();
+                        const content = gist.files['rankings.json']?.content;
+                        if (content) {
+                            existingScores = JSON.parse(content);
+                        }
                     }
                 } catch (error) {
-                    console.log('기존 랭킹 데이터 로드 실패 (첫 실행일 수 있음):', error);
+                    console.warn('기존 Gist 데이터 로드 실패:', error);
                 }
 
                 // 새로운 점수 추가
                 existingScores.push(scoreEntry);
 
-                // 점수 기준으로 정렬하고 최대 500개까지만 유지
-                existingScores.sort((a, b) => {
-                    if (b.score !== a.score) return b.score - a.score;
-                    return new Date(b.time) - new Date(a.time);
-                });
-                existingScores = existingScores.slice(0, 500);
+                // 최대 100개까지만 유지 (최신 100개)
+                if (existingScores.length > 100) {
+                    existingScores = existingScores
+                        .sort((a, b) => new Date(b.time) - new Date(a.time))
+                        .slice(0, 100);
+                }
 
-                // 로컬 스토리지에 캐시 저장 (즉시 반영용)
-                localStorage.setItem('global_rankings', JSON.stringify(existingScores));
-                localStorage.setItem('global_rankings_updated', new Date().toISOString());
-                
-                // 서버 업데이트를 위한 데이터 준비
+                // 익명으로 Gist 업데이트
                 const updateData = {
-                    rankings: existingScores,
-                    lastUpdated: new Date().toISOString()
+                    description: '가을하늘 맞추기 게임 랭킹',
+                    files: {
+                        'rankings.json': {
+                            content: JSON.stringify(existingScores, null, 2)
+                        }
+                    }
                 };
-                
-                // 로컬에 저장하여 수동으로 커밋할 수 있도록 함
-                console.log('📊 새로운 랭킹 데이터:', updateData);
-                console.log('💡 랭킹을 GitHub에 반영하려면 rankings.json 파일을 커밋하세요');
-                
-                // 개발자가 수동으로 rankings.json을 커밋할 수 있도록 알림
-                return existingScores;
+
+                const updateResponse = await fetch(gistUrl, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                if (!updateResponse.ok) {
+                    throw new Error(`Gist update failed: ${updateResponse.status}`);
+                }
             }
 
             async updateDashboard() {
-                // 로컬 데이터와 글로벌 랭킹 병합
-                let localScores = JSON.parse(localStorage.getItem('all_scores')) || [];
-                let globalScores = JSON.parse(localStorage.getItem('global_rankings') || '[]');
-                
-                // 병합 및 중복 제거
-                const allScoresMap = new Map();
-                [...localScores, ...globalScores].forEach(score => {
-                    const key = `${score.nickname}_${score.score}_${score.time || score.date}`;
-                    if (!allScoresMap.has(key)) {
-                        allScoresMap.set(key, score);
-                    }
-                });
-                
-                let allScores = Array.from(allScoresMap.values());
-                console.log('📊 전체 랭킹 데이터:', allScores.length, '개 (로컬+글로벌)');
+                // 로컬 데이터를 우선 사용 (방금 저장한 점수가 확실히 포함됨)
+                let allScores = JSON.parse(localStorage.getItem('all_scores')) || [];
+                console.log('📊 로컬에서 데이터 로드:', allScores.length, '개');
                 
                 // 현재 플레이어 점수가 포함되어 있는지 확인
                 const currentPlayerScore = allScores.find(entry => 
@@ -1588,31 +1575,22 @@
             }
 
             async loadScoresFromGist() {
-                // GitHub Pages에서 공개된 rankings.json 파일 로드
-                const rankingsUrl = 'https://jaejinbong.github.io/test/rankings.json';
-                
-                try {
-                    const response = await fetch(rankingsUrl);
-                    if (response.ok) {
-                        const rankings = await response.json();
-                        
-                        // 로컬 캐시 업데이트
-                        localStorage.setItem('global_rankings', JSON.stringify(rankings));
-                        localStorage.setItem('global_rankings_updated', new Date().toISOString());
-                        
-                        return rankings;
-                    }
-                } catch (error) {
-                    console.log('글로벌 랭킹 로드 실패, 로컬 캐시 사용:', error);
+                const gistId = 'a952ef0ea0aa59f9d039bb9df5c446a2';
+                const gistUrl = `https://api.github.com/gists/${gistId}`;
+
+                const response = await fetch(gistUrl);
+                if (!response.ok) {
+                    throw new Error(`Gist load failed: ${response.status}`);
                 }
-                
-                // 로컬 캐시에서 로드
-                const cachedRankings = localStorage.getItem('global_rankings');
-                if (cachedRankings) {
-                    return JSON.parse(cachedRankings);
+
+                const gist = await response.json();
+                const content = gist.files['rankings.json']?.content;
+
+                if (!content) {
+                    return [];
                 }
-                
-                return [];
+
+                return JSON.parse(content);
             }
 
             displayRankings(allScores) {
@@ -2608,21 +2586,9 @@
             }
 
             async updateDashboard() {
-                // 로컬 데이터와 글로벌 랭킹 병합
-                let localScores = JSON.parse(localStorage.getItem('all_scores')) || [];
-                let globalScores = JSON.parse(localStorage.getItem('global_rankings') || '[]');
-                
-                // 병합 및 중복 제거
-                const allScoresMap = new Map();
-                [...localScores, ...globalScores].forEach(score => {
-                    const key = `${score.nickname}_${score.score}_${score.time || score.date}`;
-                    if (!allScoresMap.has(key)) {
-                        allScoresMap.set(key, score);
-                    }
-                });
-                
-                let allScores = Array.from(allScoresMap.values());
-                console.log('📊 전체 랭킹 데이터:', allScores.length, '개 (로컬+글로벌)');
+                // 로컬 데이터를 우선 사용 (방금 저장한 점수가 확실히 포함됨)
+                let allScores = JSON.parse(localStorage.getItem('all_scores')) || [];
+                console.log('📊 로컬에서 데이터 로드:', allScores.length, '개');
                 
                 // 현재 플레이어 점수가 포함되어 있는지 확인
                 const currentPlayerScore = allScores.find(entry => 

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>랭킹 업데이트 도구</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #007AFF;
+            padding-bottom: 10px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0051D5;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        textarea {
+            width: 100%;
+            height: 300px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e0e0e0;
+        }
+        .stat-card h3 {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+        }
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007AFF;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 가을하늘 맞추기 게임 - 랭킹 관리 도구</h1>
+        
+        <div class="section">
+            <h2>📊 현재 랭킹 상태</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <h3>총 기록 수</h3>
+                    <div class="value" id="totalRecords">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>최고 점수</h3>
+                    <div class="value" id="highScore">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>참여자 수</h3>
+                    <div class="value" id="uniquePlayers">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🔄 랭킹 업데이트</h2>
+            <p>로컬 스토리지의 랭킹 데이터를 수집하여 rankings.json 파일로 내보냅니다.</p>
+            <button onclick="loadLocalRankings()">로컬 랭킹 불러오기</button>
+            <button onclick="loadGlobalRankings()">글로벌 랭킹 불러오기</button>
+            <button onclick="mergeRankings()">랭킹 병합하기</button>
+            <button onclick="exportRankings()">JSON 파일 다운로드</button>
+            <div id="status" class="status" style="display:none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>📝 랭킹 데이터</h2>
+            <textarea id="rankingData" readonly placeholder="랭킹 데이터가 여기에 표시됩니다..."></textarea>
+        </div>
+
+        <div class="section">
+            <h2>📌 사용 방법</h2>
+            <ol>
+                <li>게임을 플레이한 브라우저에서 이 페이지를 엽니다</li>
+                <li>"로컬 랭킹 불러오기" 버튼을 클릭하여 로컬 데이터를 확인합니다</li>
+                <li>"글로벌 랭킹 불러오기" 버튼으로 기존 서버 데이터를 가져옵니다</li>
+                <li>"랭킹 병합하기"로 두 데이터를 합칩니다</li>
+                <li>"JSON 파일 다운로드"로 rankings.json 파일을 받습니다</li>
+                <li>다운로드한 파일을 GitHub 리포지토리에 커밋합니다</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        let localRankings = [];
+        let globalRankings = [];
+        let mergedRankings = [];
+
+        function showStatus(message, type = 'success') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+
+        function updateStats(rankings) {
+            document.getElementById('totalRecords').textContent = rankings.length;
+            
+            const highScore = rankings.length > 0 
+                ? Math.max(...rankings.map(r => r.score || 0))
+                : 0;
+            document.getElementById('highScore').textContent = highScore;
+            
+            const uniquePlayers = new Set(rankings.map(r => r.nickname)).size;
+            document.getElementById('uniquePlayers').textContent = uniquePlayers;
+        }
+
+        function loadLocalRankings() {
+            try {
+                // 로컬 스토리지에서 모든 관련 데이터 수집
+                const allScores = JSON.parse(localStorage.getItem('all_scores') || '[]');
+                const globalCache = JSON.parse(localStorage.getItem('global_rankings') || '[]');
+                
+                // 두 데이터 병합
+                localRankings = [...allScores, ...globalCache];
+                
+                // 중복 제거 (닉네임, 점수, 시간이 모두 같은 경우)
+                const uniqueMap = new Map();
+                localRankings.forEach(score => {
+                    const key = `${score.nickname}_${score.score}_${score.time || score.date}`;
+                    if (!uniqueMap.has(key)) {
+                        uniqueMap.set(key, score);
+                    }
+                });
+                localRankings = Array.from(uniqueMap.values());
+                
+                // 정렬
+                localRankings.sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    return new Date(b.time || b.date) - new Date(a.time || a.date);
+                });
+                
+                document.getElementById('rankingData').value = JSON.stringify(localRankings, null, 2);
+                updateStats(localRankings);
+                showStatus(`로컬 랭킹 ${localRankings.length}개 로드 완료`);
+            } catch (error) {
+                showStatus(`로드 실패: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadGlobalRankings() {
+            try {
+                const response = await fetch('https://jaejinbong.github.io/test/rankings.json');
+                if (response.ok) {
+                    globalRankings = await response.json();
+                    document.getElementById('rankingData').value = JSON.stringify(globalRankings, null, 2);
+                    updateStats(globalRankings);
+                    showStatus(`글로벌 랭킹 ${globalRankings.length}개 로드 완료`);
+                } else {
+                    showStatus('글로벌 랭킹 파일이 없습니다', 'error');
+                }
+            } catch (error) {
+                showStatus(`로드 실패: ${error.message}`, 'error');
+            }
+        }
+
+        function mergeRankings() {
+            try {
+                // 모든 랭킹 병합
+                const allRankings = [...localRankings, ...globalRankings];
+                
+                // 중복 제거
+                const uniqueMap = new Map();
+                allRankings.forEach(score => {
+                    const key = `${score.nickname}_${score.score}_${score.time || score.date}`;
+                    if (!uniqueMap.has(key)) {
+                        uniqueMap.set(key, score);
+                    }
+                });
+                mergedRankings = Array.from(uniqueMap.values());
+                
+                // 정렬 (점수 높은 순, 같으면 최신 순)
+                mergedRankings.sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    return new Date(b.time || b.date) - new Date(a.time || a.date);
+                });
+                
+                // 최대 500개로 제한
+                mergedRankings = mergedRankings.slice(0, 500);
+                
+                document.getElementById('rankingData').value = JSON.stringify(mergedRankings, null, 2);
+                updateStats(mergedRankings);
+                showStatus(`병합 완료: ${mergedRankings.length}개 기록`);
+            } catch (error) {
+                showStatus(`병합 실패: ${error.message}`, 'error');
+            }
+        }
+
+        function exportRankings() {
+            const data = document.getElementById('rankingData').value;
+            if (!data || data === '[]') {
+                showStatus('내보낼 데이터가 없습니다', 'error');
+                return;
+            }
+            
+            // JSON 파일 생성
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'rankings.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showStatus('rankings.json 파일 다운로드 완료');
+        }
+
+        // 페이지 로드 시 로컬 데이터 자동 로드
+        window.onload = () => {
+            loadLocalRankings();
+        };
+    </script>
+</body>
+</html>
